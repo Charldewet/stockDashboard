@@ -1,0 +1,16 @@
+SQLAlchemy>=1.4.0,<2.0.0 # For database ORM
+python-dotenv>=0.19.0 # For loading .env files
+Flask>=2.0.0
+Flask-Cors>=3.0.10
+gunicorn
+beautifulsoup4
+psutil
+PyJWT
+Faker
+
+# Add other dependencies here as your project grows, for example:
+# beautifulsoup4>=4.9.3 # For HTML parsing if you choose to use it
+# lxml>=4.6.3 # Another option for HTML/XML parsing
+# requests>=2.25.1 # For making HTTP requests if needed
+# uvicorn>=0.15.0 # For ASGI server like FastAPI
+# fastapi>=0.68.0 # If building a FastAPI backend API 

@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'fieldwork', 'fieldwork-hum', system-ui, -apple-system, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif;
+  }
+  
+  body {
+    background: linear-gradient(to bottom right, #111827, #0F172A);
+    color: #F9FAFB;
+    min-height: 100vh;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-accent-primary hover:bg-accent-primary-hover text-text-primary px-6 py-3 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 ease-out;
+  }
+  
+  .btn-secondary {
+    @apply bg-surface-primary hover:bg-surface-secondary text-accent-primary border border-accent-primary px-6 py-3 rounded-lg transition-all duration-200 ease-out;
+  }
+  
+  .btn-ghost {
+    @apply bg-transparent hover:bg-surface-secondary text-accent-primary px-4 py-2 rounded-md transition-all duration-200 ease-out;
+  }
+  
+  .card {
+    @apply bg-surface-primary rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 ease-out;
+  }
+  
+  .input {
+    @apply bg-input-bg border border-input-border text-text-primary rounded-lg px-4 py-3 text-base focus:border-accent-primary-focus focus:outline-none focus:ring-2 focus:ring-accent-primary-focus focus:ring-opacity-40 transition-all duration-200 ease-out;
+  }
+} 

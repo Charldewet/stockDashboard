@@ -1,0 +1,12 @@
+.custom-carousel-dots .slick-dots li button:before {
+  font-size: 10px !important;
+  color: #fff !important;
+  opacity: 0.3 !important;
+}
+.custom-carousel-dots .slick-dots li.slick-active button:before {
+  color: #fff !important;
+  opacity: 1 !important;
+}
+.custom-carousel-dots .slick-dots {
+  margin-top: 5px !important;
+} 
