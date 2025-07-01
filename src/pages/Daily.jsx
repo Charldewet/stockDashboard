@@ -1,14 +1,37 @@
 import { useState, useEffect, useRef } from 'react'
-import { TrendingUp, DollarSign, ShoppingCart, ShoppingBasket, Users, AlertCircle } from 'lucide-react'
+import { TrendingUp, DollarSign, ShoppingCart, ShoppingBasket, Users, AlertCircle, TrendingDown } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { turnoverAPI, financialAPI, salesAPI } from '../services/api'
 import { Doughnut, Line, Bar } from 'react-chartjs-2'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Title, BarElement, Filler } from 'chart.js'
+import { Area, AreaChart, ResponsiveContainer } from 'recharts'
 import 'slick-carousel/slick/slick.css'
 import 'slick-carousel/slick/slick-theme.css'
 import Slider from 'react-slick'
 import './carousel-dots.css'
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Title, BarElement, Filler)
+
+// SparklineChart component for quick stats
+const SparklineChart = ({ data, color }) => {
+  const chartData = data.map((value, index) => ({ value, index }))
+  
+  return (
+    <div className="h-8 w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+          <Area
+            type="monotone"
+            dataKey="value"
+            stroke={color}
+            fill={color}
+            fillOpacity={0.1}
+            strokeWidth={1.5}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
 
 function formatDateLocal(date) {
   console.log('formatDateLocal input:', {
@@ -45,6 +68,152 @@ function getPreviousYearSameDayOfWeek(date) {
   
   return targetDate;
 }
+
+const formatCurrency = (amount) => {
+  return new Intl.NumberFormat('en-ZA', {
+    style: 'currency',
+    currency: 'ZAR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(amount)
+}
+
+const formatNumber = (num) => {
+  return new Intl.NumberFormat('en-ZA').format(num)
+}
+
+const calculatePercentageChange = (current, previous) => {
+  if (previous === 0) return current > 0 ? 100 : 0
+  return ((current - previous) / previous) * 100
+}
+
+// Add getAlerts function here after all utility functions
+const getAlerts = (data, previousYearData, sparklineData) => {
+  const alerts = [];
+  
+  // Helper to calculate average from array
+  const getAverage = (arr) => arr.reduce((a, b) => a + b, 0) / arr.length;
+
+  // 1. Turnover Alerts
+  if (data.turnover < previousYearData.turnover) {
+    const diff = previousYearData.turnover - data.turnover;
+    const percentDiff = ((diff / previousYearData.turnover) * 100).toFixed(1);
+    alerts.push({
+      severity: 'warning',
+      icon: '⚠️',
+      title: 'YoY Turnover Down',
+      description: `Down ${percentDiff}% (${formatCurrency(diff)}) vs last year`
+    });
+  } else if (data.turnover > previousYearData.turnover * 1.1) {
+    const diff = data.turnover - previousYearData.turnover;
+    const percentDiff = ((diff / previousYearData.turnover) * 100).toFixed(1);
+    alerts.push({
+      severity: 'positive',
+      icon: '🟢',
+      title: 'Strong YoY Performance',
+      description: `Up ${percentDiff}% (${formatCurrency(diff)}) vs last year`
+    });
+  }
+
+  // 2. GP% Alerts
+  if (data.grossProfitPercent < 20) {
+    alerts.push({
+      severity: 'critical',
+      icon: '🔴',
+      title: 'Critical GP Drop',
+      description: `GP at ${data.grossProfitPercent.toFixed(1)}% - Urgent attention needed`
+    });
+  } else if (data.grossProfitPercent < 25) {
+    alerts.push({
+      severity: 'warning',
+      icon: '⚠️',
+      title: 'Low GP%',
+      description: `GP at ${data.grossProfitPercent.toFixed(1)}% - Below 25% target`
+    });
+  } else if (data.grossProfitPercent > 30) {
+    alerts.push({
+      severity: 'positive',
+      icon: '🟢',
+      title: 'Great Margin',
+      description: `Strong GP at ${data.grossProfitPercent.toFixed(1)}%`
+    });
+  }
+
+  // 3. Dispensary % Alerts
+  const dispensaryPercent = (data.dispensaryTurnover / data.turnover) * 100;
+  if (dispensaryPercent > 65) {
+    alerts.push({
+      severity: 'warning',
+      icon: '⚠️',
+      title: 'High Dispensary %',
+      description: `Dispensary at ${dispensaryPercent.toFixed(1)}% - Front shop underperforming`
+    });
+  } else if (dispensaryPercent < 40) {
+    alerts.push({
+      severity: 'warning',
+      icon: '⚠️',
+      title: 'Low Dispensary %',
+      description: `Dispensary at ${dispensaryPercent.toFixed(1)}% - Possible drop in script volumes`
+    });
+  }
+
+  // 4. Scripts Alert
+  if (data.scriptsDispensed === 0) {
+    alerts.push({
+      severity: 'critical',
+      icon: '🔴',
+      title: 'No Scripts Recorded',
+      description: 'Possible data import issue - please check'
+    });
+  }
+
+  // 5. Basket Performance
+  if (data.avgBasket < 100) {
+    alerts.push({
+      severity: 'critical',
+      icon: '🔴',
+      title: 'Very Poor Basket Value',
+      description: `Critical: Average basket only ${formatCurrency(data.avgBasket)} - Attention needed`
+    });
+  } else if (data.avgBasket < 150) {
+    alerts.push({
+      severity: 'warning',
+      icon: '⚠️',
+      title: 'Low Basket Value',
+      description: `Average basket at ${formatCurrency(data.avgBasket)} - Below target of R150`
+    });
+  } else if (data.avgBasket > 200) {
+    alerts.push({
+      severity: 'positive',
+      icon: '🟢',
+      title: 'Strong Basket Performance',
+      description: `Excellent basket value of ${formatCurrency(data.avgBasket)} - Above R200 target`
+    });
+  }
+
+  // 6. Cost of Sales vs Purchases Analysis
+  if (data.costOfSales > 0) {  // Prevent division by zero
+    const purchaseRatio = (data.purchases / data.costOfSales - 1) * 100;
+    
+    if (purchaseRatio > 25) {
+      alerts.push({
+        severity: 'critical',
+        icon: '🔴',
+        title: 'High Stock Purchases',
+        description: `Purchases ${purchaseRatio.toFixed(0)}% above cost of sales (${formatCurrency(data.purchases)} vs ${formatCurrency(data.costOfSales)})`
+      });
+    } else if (purchaseRatio > 10) {
+      alerts.push({
+        severity: 'warning',
+        icon: '⚠️',
+        title: 'Elevated Stock Purchases',
+        description: `Purchases ${purchaseRatio.toFixed(0)}% above cost of sales (${formatCurrency(data.purchases)} vs ${formatCurrency(data.costOfSales)})`
+      });
+    }
+  }
+
+  return alerts;
+};
 
 const Daily = ({ selectedDate }) => {
   console.log('🚨 DAILY COMPONENT MOUNTED 🚨', {
@@ -103,6 +272,18 @@ const Daily = ({ selectedDate }) => {
   const [monthlyTurnover12, setMonthlyTurnover12] = useState({ labels: [], data: [], prevYearData: [] })
   const [monthlyBasket12, setMonthlyBasket12] = useState({ labels: [], data: [] })
   const [dailyGPPercent30Days, setDailyGPPercent30Days] = useState({ labels: [], data: [] })
+  const [sparklineData, setSparklineData] = useState({
+    turnover: [],
+    grossProfit: [],
+    costOfSales: [],
+    avgBasket: [],
+    gpPercent: []
+  })
+  const [scriptsVsTurnover14Days, setScriptsVsTurnover14Days] = useState({
+    labels: [],
+    scriptsData: [],
+    turnoverData: []
+  });
 
   useEffect(() => {
     console.log('🔥 DAILY COMPONENT EFFECT TRIGGERED 🔥', {
@@ -125,6 +306,8 @@ const Daily = ({ selectedDate }) => {
       fetchMonthlyTurnoverAndBasket(selectedDate)
       fetch8DayTurnover(selectedDate)
       fetch30DayGPTrend(selectedDate)
+      fetchSparklineData(selectedDate)
+      fetchScriptsVsTurnover14Days(selectedDate)
     }
     // eslint-disable-next-line
   }, [selectedPharmacy, selectedDate])
@@ -351,12 +534,12 @@ const Daily = ({ selectedDate }) => {
   const fetchDailyTurnover14Days = async (dateObj) => {
     try {
       // Calculate the date 14 days ago
-      const endDate = new Date(dateObj)
-      const startDate = new Date(dateObj)
-      startDate.setDate(startDate.getDate() - 13) // 14 days total (including today)
+      const endDate = new Date(dateObj);
+      const startDate = new Date(dateObj);
+      startDate.setDate(startDate.getDate() - 13); // 14 days total (including today)
       
-      const startDateStr = formatDateLocal(startDate)
-      const endDateStr = formatDateLocal(endDate)
+      const startDateStr = formatDateLocal(startDate);
+      const endDateStr = formatDateLocal(endDate);
 
       // Fetch daily turnover for the last 14 days
       const dailyTurnoverData = await turnoverAPI.getDailyTurnoverForRange(selectedPharmacy, startDateStr, endDateStr)
@@ -391,12 +574,12 @@ const Daily = ({ selectedDate }) => {
   const fetchDailyBasket14Days = async (dateObj) => {
     try {
       // Calculate the date 14 days ago
-      const endDate = new Date(dateObj)
-      const startDate = new Date(dateObj)
-      startDate.setDate(startDate.getDate() - 13) // 14 days total (including today)
+      const endDate = new Date(dateObj);
+      const startDate = new Date(dateObj);
+      startDate.setDate(startDate.getDate() - 13); // 14 days total (including today)
       
-      const startDateStr = formatDateLocal(startDate)
-      const endDateStr = formatDateLocal(endDate)
+      const startDateStr = formatDateLocal(startDate);
+      const endDateStr = formatDateLocal(endDate);
 
       // Fetch daily basket for the last 14 days
       const dailyBasketData = await financialAPI.getDailyAvgBasketForRange(selectedPharmacy, startDateStr, endDateStr)
@@ -547,6 +730,88 @@ const Daily = ({ selectedDate }) => {
     }
   }
 
+  const fetchSparklineData = async (dateObj) => {
+    try {
+      const endDate = new Date(dateObj)
+      const startDate = new Date(dateObj)
+      startDate.setDate(startDate.getDate() - 6) // Last 7 days
+      
+      const startDateStr = formatDateLocal(startDate)
+      const endDateStr = formatDateLocal(endDate)
+
+      const [turnoverData, gpData, dailyGPData, costsData, basketData] = await Promise.all([
+        turnoverAPI.getDailyTurnoverForRange(selectedPharmacy, startDateStr, endDateStr),
+        financialAPI.getGPForRange(selectedPharmacy, startDateStr, endDateStr),
+        financialAPI.getDailyGPPercentForRange(selectedPharmacy, startDateStr, endDateStr),
+        financialAPI.getCostsForRange(selectedPharmacy, startDateStr, endDateStr),
+        financialAPI.getDailyAvgBasketForRange(selectedPharmacy, startDateStr, endDateStr)
+      ])
+
+      // Debug log to check GP data
+      console.log('Daily GP Data received:', dailyGPData);
+      
+      // Extract and process GP% data
+      const gpPercentData = dailyGPData.daily_gp_percent?.map(d => d.gp_percent || 0) || [];
+      console.log('GP% data processed:', gpPercentData);
+
+      setSparklineData({
+        turnover: turnoverData.daily_turnover?.map(d => d.turnover) || [],
+        grossProfit: gpData.daily_gp?.map(d => d.gp_value) || [],
+        costOfSales: costsData.daily_costs?.map(d => d.cost_of_sales) || [],
+        avgBasket: basketData.daily_avg_basket?.map(d => d.avg_basket_value) || [],
+        gpPercent: gpPercentData
+      })
+    } catch (err) {
+      console.error('Error fetching sparkline data:', err)
+    }
+  }
+
+  const fetchScriptsVsTurnover14Days = async (dateObj) => {
+    try {
+      // Calculate the date 14 days ago
+      const endDate = new Date(dateObj);
+      const startDate = new Date(dateObj);
+      startDate.setDate(startDate.getDate() - 13); // 14 days total (including today)
+      
+      const startDateStr = formatDateLocal(startDate);
+      const endDateStr = formatDateLocal(endDate);
+
+      // Fetch both scripts and turnover data
+      const [scriptsData, turnoverData] = await Promise.all([
+        salesAPI.getDailyScriptsDispensedForRange(selectedPharmacy, startDateStr, endDateStr),
+        turnoverAPI.getDailyTurnoverForRange(selectedPharmacy, startDateStr, endDateStr)
+      ]);
+
+      // Generate date labels and data arrays
+      const labels = [];
+      const scripts = [];
+      const turnover = [];
+      const currentDate = new Date(startDate);
+      
+      while (currentDate <= endDate) {
+        const dateStr = formatDateLocal(currentDate);
+        const dayScripts = (scriptsData.daily_scripts_dispensed?.find(item => item.date === dateStr)?.scripts_dispensed || 0) / 100;
+        const dayTurnover = turnoverData.daily_turnover?.find(item => item.date === dateStr)?.turnover || 0;
+        
+        // Format label as day/month
+        const label = `${currentDate.getDate()}/${currentDate.getMonth() + 1}`;
+        labels.push(label);
+        scripts.push(dayScripts);
+        turnover.push(dayTurnover);
+        
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+
+      setScriptsVsTurnover14Days({
+        labels,
+        scriptsData: scripts,
+        turnoverData: turnover
+      });
+    } catch (err) {
+      console.error('Error fetching scripts vs turnover data:', err);
+    }
+  };
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-ZA', {
       style: 'currency',
@@ -684,6 +949,17 @@ const Daily = ({ selectedDate }) => {
     )
   }
 
+  // Add helper function for trend indicators
+  const getTrendIndicator = (currentValue, previousValue) => {
+    const percentChange = calculatePercentageChange(currentValue, previousValue)
+    if (percentChange > 0) {
+      return <TrendingUp className="w-4 h-4 text-status-success" />
+    } else if (percentChange < 0) {
+      return <TrendingDown className="w-4 h-4 text-status-error" />
+    }
+    return null
+  }
+
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
@@ -732,247 +1008,227 @@ const Daily = ({ selectedDate }) => {
       {/* Quick Stats Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 mb-4">
         <div className="card sm:p-4 p-3">
-          <div className="flex items-center justify-between h-full">
-            <div>
-              <p className="text-text-secondary text-xs sm:text-sm font-medium">Total Turnover</p>
-              <p className="text-xl sm:text-3xl font-bold text-accent-primary">
-                {formatCurrency(todayData.turnover)}
-              </p>
-              <div className="flex items-center gap-1 sm:gap-2 mt-1">
-                <p className="text-text-secondary text-xs sm:text-sm">
-                  2024: {formatCurrency(previousYearData.turnover)}
+          <div className="flex flex-col h-full">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <p className="text-text-secondary text-xs sm:text-sm font-medium">Total Turnover</p>
+                <p className="text-xl sm:text-3xl font-bold text-accent-primary">
+                  {formatCurrency(todayData.turnover)}
                 </p>
-                {(() => {
-                  const indicator = getChangeIndicator(todayData.turnover, previousYearData.turnover)
-                  return (
-                    <span className={`text-xs sm:text-sm font-medium ${indicator.color}`}>
-                      {indicator.arrow} {indicator.text}
-                    </span>
-                  )
-                })()}
+              </div>
+              <div className="w-8 h-8 sm:w-12 sm:h-12 bg-accent-primary rounded-lg flex items-center justify-center">
+                <DollarSign className="text-surface-secondary w-4 h-4 sm:w-6 sm:h-6" />
               </div>
             </div>
-            <div className="w-8 h-8 sm:w-12 sm:h-12 bg-accent-primary rounded-lg flex items-center justify-center">
-              <DollarSign className="text-surface-secondary w-4 h-4 sm:w-6 sm:h-6" />
+            <div className="flex items-center gap-1 sm:gap-2 mb-2">
+              <p className="text-text-secondary text-xs sm:text-sm">
+                vs 2024: {formatCurrency(previousYearData.turnover)}
+              </p>
+              {getTrendIndicator(todayData.turnover, previousYearData.turnover)}
+              {(() => {
+                const indicator = getChangeIndicator(todayData.turnover, previousYearData.turnover)
+                return (
+                  <span className={`text-xs sm:text-sm font-medium ${indicator.color}`}>
+                    {indicator.text}
+                  </span>
+                )
+              })()}
             </div>
+            {sparklineData.turnover.length > 0 && (
+              <SparklineChart data={sparklineData.turnover} color="#FF492C" />
+            )}
           </div>
         </div>
 
         <div className="card sm:p-4 p-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-text-secondary text-xs sm:text-sm font-medium">Gross Profit</p>
-              <div className="flex flex-col">
-                <span className="text-lg sm:text-xl font-bold text-text-primary">{formatCurrency(todayData.grossProfit)}</span>
-                <p className="text-text-secondary text-xs sm:text-sm font-medium">GP %</p>
-                <span className="text-lg sm:text-xl font-semibold text-text-primary">{Number(todayData.grossProfitPercent).toFixed(1)}%</span>
+          <div className="flex flex-col h-full">
+            <div className="flex items-start justify-between mb-2">
+              <div className="flex flex-col gap-2">
+                <div>
+                  <p className="text-text-secondary text-xs sm:text-sm font-medium">Gross Profit %</p>
+                  <p className="text-lg sm:text-2xl font-bold text-chart-gold">
+                    {Number(todayData.grossProfitPercent).toFixed(1)}%
+                  </p>
+                </div>
+                <div>
+                  <p className="text-text-secondary text-xs sm:text-sm font-medium">Gross Profit: {formatCurrency(todayData.grossProfit)}</p>
+                </div>
+              </div>
+              <div className="w-8 h-8 sm:w-12 sm:h-12 bg-chart-gold rounded-lg flex items-center justify-center">
+                <TrendingUp className="text-surface-secondary w-4 h-4 sm:w-6 sm:h-6" />
               </div>
             </div>
-            <div className="w-8 h-8 sm:w-12 sm:h-12 bg-chart-gold rounded-lg flex items-center justify-center">
-              <TrendingUp className="text-surface-secondary w-4 h-4 sm:w-6 sm:h-6" />
-            </div>
+            {sparklineData.gpPercent && sparklineData.gpPercent.length > 0 && (
+
+                <SparklineChart data={sparklineData.gpPercent} color="#F6C643" />
+
+            )}
           </div>
         </div>
 
         <div className="card sm:p-4 p-3">
-          <div className="flex items-center justify-between h-full">
-            <div>
-              <p className="text-text-secondary text-xs sm:text-sm font-medium">Cost of Sales</p>
-              <div className="flex flex-col">
-                <span className="text-lg sm:text-xl font-bold text-cost-sales">{formatCurrency(todayData.costOfSales)}</span>
-                <p className="text-text-secondary text-xs sm:text-sm font-medium">Purchases</p>
-                <span className="text-lg sm:text-xl font-bold text-accent-primary">{formatCurrency(todayData.purchases)}</span>
+          <div className="flex flex-col h-full">
+            <div className="flex items-start justify-between mb-2">
+              <div className="flex flex-col gap-2">
+                <div>
+                  <p className="text-text-secondary text-xs sm:text-sm font-medium">Cost of Sales</p>
+                  <p className="text-lg sm:text-2xl font-bold text-cost-sales">
+                    {formatCurrency(todayData.costOfSales)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-text-secondary text-xs sm:text-sm font-medium">Purchases</p>
+                  <p className="text-lg sm:text-2xl font-bold text-cost-sales">
+                    {formatCurrency(todayData.purchases)}
+                  </p>
+                </div>
+              </div>
+              <div className="w-8 h-8 sm:w-12 sm:h-12 bg-cost-sales rounded-lg flex items-center justify-center">
+                <ShoppingCart className="text-surface-secondary w-4 h-4 sm:w-6 sm:h-6" />
               </div>
             </div>
-            <div className="w-8 h-8 sm:w-12 sm:h-12 bg-cost-sales rounded-lg flex items-center justify-center">
-              <ShoppingCart className="text-surface-secondary w-4 h-4 sm:w-6 sm:h-6" />
-            </div>
+            {sparklineData.costOfSales.length > 0 && (
+              <SparklineChart data={sparklineData.costOfSales} color="#E24313" />
+            )}
           </div>
         </div>
 
         <div className="card sm:p-4 p-3">
-          <div className="flex items-center justify-between h-full">
-            <div>
-              <p className="text-text-secondary text-xs sm:text-sm font-medium">Avg Basket Value</p>
-              <div className="flex flex-col">
-                <span className="text-lg sm:text-xl font-bold text-text-primary">{formatCurrency(todayData.avgBasket)}</span>
-                <p className="text-text-secondary text-xs sm:text-sm font-medium">Avg Basket Size</p>
-                <span className="text-lg sm:text-xl font-semibold text-text-primary">{Number(todayData.avgBasketSize).toFixed(1)} items</span>
+          <div className="flex flex-col h-full">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <p className="text-text-secondary text-xs sm:text-sm font-medium">Avg Basket Value</p>
+                <p className="text-xl sm:text-3xl font-bold text-accent-secondary-purple">
+                  {formatCurrency(todayData.avgBasket)}
+                </p>
+              </div>
+              <div className="w-8 h-8 sm:w-12 sm:h-12 bg-accent-secondary-purple rounded-lg flex items-center justify-center">
+                <ShoppingBasket className="text-surface-secondary w-4 h-4 sm:w-6 sm:h-6" />
               </div>
             </div>
-            <div className="w-8 h-8 sm:w-12 sm:h-12 bg-accent-secondary-purple rounded-lg flex items-center justify-center">
-              <ShoppingBasket className="text-surface-secondary w-4 h-4 sm:w-6 sm:h-6" />
+            <div className="flex items-center gap-1 sm:gap-2 mb-2">
+              <p className="text-text-secondary text-xs sm:text-sm">
+                Items per Basket: <span className="font-semibold">{Number(todayData.avgBasketSize).toFixed(1)}</span>
+              </p>
+            </div>
+            {sparklineData.avgBasket.length > 0 && (
+              <SparklineChart data={sparklineData.avgBasket} color="#8F6ED5" />
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Key Insights Section */}
+      <div className="mb-4">
+        <div className="card">
+          <h2 className="text-xl font-semibold text-text-primary mb-3">Key Insights</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* YoY Performance */}
+            <div className="flex items-start gap-3">
+              <div className={`p-2 rounded-lg ${
+                calculatePercentageChange(todayData.turnover, previousYearData.turnover) >= 0 
+                ? 'bg-status-success bg-opacity-20' 
+                : 'bg-status-error bg-opacity-20'
+              }`}>
+                <TrendingUp className={`w-5 h-5 ${
+                  calculatePercentageChange(todayData.turnover, previousYearData.turnover) >= 0
+                  ? 'text-status-success'
+                  : 'text-status-error'
+                }`} />
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-text-primary">YoY Performance</h3>
+                <p className="text-xs text-text-secondary mt-1">
+                  {(() => {
+                    const change = calculatePercentageChange(todayData.turnover, previousYearData.turnover)
+                    const diff = todayData.turnover - previousYearData.turnover
+                    return `${change >= 0 ? 'Up' : 'Down'} ${Math.abs(change).toFixed(1)}% (${formatCurrency(Math.abs(diff))}) vs last year`
+                  })()}
+                </p>
+              </div>
+            </div>
+
+            {/* GP Performance */}
+            <div className="flex items-start gap-3">
+              <div className={`p-2 rounded-lg ${
+                todayData.grossProfitPercent >= 25
+                ? 'bg-status-success bg-opacity-20'
+                : 'bg-status-warning bg-opacity-20'
+              }`}>
+                <TrendingUp className={`w-5 h-5 ${
+                  todayData.grossProfitPercent >= 25
+                  ? 'text-status-success'
+                  : 'text-status-warning'
+                }`} />
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-text-primary">Gross Profit</h3>
+                <p className="text-xs text-text-secondary mt-1">
+                  {todayData.grossProfitPercent >= 25
+                    ? `Strong GP at ${todayData.grossProfitPercent.toFixed(1)}%, above target`
+                    : `GP at ${todayData.grossProfitPercent.toFixed(1)}%, below 25% target`
+                  }
+                </p>
+              </div>
+            </div>
+
+            {/* Basket Analysis */}
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-accent-secondary-purple bg-opacity-20">
+                <ShoppingBasket className="w-5 h-5 text-accent-secondary-purple" />
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-text-primary">Basket Analysis</h3>
+                <p className="text-xs text-text-secondary mt-1">
+                  Average {todayData.avgBasketSize.toFixed(1)} items per basket at {formatCurrency(todayData.avgBasket)} per transaction
+                </p>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Chart Section */}
-        <div className="lg:col-span-2" style={{position: 'relative'}}>
-          <div className="card mb-4">
-            <h2 className="text-2xl font-semibold text-text-primary mb-2">Monthly Turnover Trend</h2>
-            <div className="h-60 p-3" style={{position: 'relative'}}>
-              {trendlineData.labels.length > 0 ? (
-                <>
-                  <Line
-                    ref={chartRef}
-                    data={{
-                      labels: trendlineData.labels,
-                      datasets: [
-                        {
-                          label: 'Cumulative Turnover',
-                          data: trendlineData.cumulativeTurnover,
-                          borderColor: '#FF492C',
-                          backgroundColor: 'rgba(255, 73, 44, 0.1)',
-                          borderWidth: 3,
-                          fill: true,
-                          tension: 0.4,
-                          pointBackgroundColor: '#FF492C',
-                          pointBorderColor: '#fff',
-                          pointBorderWidth: 2,
-                          pointRadius: 0,
-                          pointHoverRadius: 0,
-                        },
-                        {
-                          label: 'Prev Year Cumulative',
-                          data: trendlineData.prevYearCumulativeTurnover,
-                          borderColor: '#E2AEA1',
-                          backgroundColor: 'rgba(126, 217, 87, 0.05)',
-                          borderWidth: 2,
-                          fill: false,
-                          tension: 0.4,
-                          borderDash: [8, 6],
-                          pointBackgroundColor: '#7ED957',
-                          pointBorderColor: '#fff',
-                          pointBorderWidth: 2,
-                          pointRadius: 0,
-                          pointHoverRadius: 0,
-                        },
-                      ],
-                    }}
-                    options={{
-                      responsive: true,
-                      maintainAspectRatio: false,
-                      plugins: {
-                        legend: {
-                          display: false,
-                        },
-                        tooltip: {
-                          backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                          titleColor: '#fff',
-                          bodyColor: '#fff',
-                          borderWidth: 0,
-                          displayColors: false,
-                          axis: 'x',
-                          callbacks: {
-                            label: function(context) {
-                              const year = new Date().getFullYear() - (context.datasetIndex === 1 ? 1 : 0)
-                              const value = context.parsed.y
-                              let valueStr = ''
-                              if (value >= 1000000) {
-                                valueStr = `R ${(value / 1000000).toFixed(2)}M`
-                              } else if (value >= 1000) {
-                                valueStr = `R ${(value / 1000).toFixed(0)}k`
-                              } else {
-                                valueStr = `R ${value.toLocaleString('en-ZA')}`
-                              }
-                              return `${year}: ${valueStr}`
-                            },
-                          },
-                          labelTextColor: function(context) {
-                            return context.datasetIndex === 0 ? '#FF492C' : '#E2AEA1'
-                          },
-                        },
-                      },
-                      scales: {
-                        x: {
-                          grid: {
-                            display: false,
-                          },
-                          ticks: {
-                            color: '#9CA3AF',
-                            maxRotation: 45,
-                          },
-                        },
-                        y: {
-                          grid: {
-                            display: false,
-                          },
-                          min: 0,
-                          ticks: {
-                            color: '#9CA3AF',
-                            callback: function(value) {
-                              if (value >= 1000000) {
-                                return `R${(value / 1000000).toFixed(1)}M`
-                              } else if (value >= 1000) {
-                                return `R${(value / 1000).toFixed(0)}k`
-                              } else {
-                                return `R${value.toFixed(0)}`
-                              }
-                            }
-                          },
-                        },
-                      },
-                      interaction: {
-                        intersect: false,
-                        mode: 'index',
-                      },
-                      elements: {
-                        point: {
-                          radius: 0,
-                          hoverRadius: 0,
-                        },
-                      },
-                    }}
-                  />
-                  {getYoYBubble()}
-                </>
-              ) : (
-                <div className="h-full flex items-center justify-center">
-                  <p className="text-text-secondary">Loading trend data...</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* New Chart */}
-          <div className="card">
-            <h2 className="text-2xl font-semibold text-text-primary mb-2">14 Day Sales Window</h2>
-            <div className="h-60 p-3" style={{position: 'relative'}}>
-              {dailyTurnover14Days.labels.length > 0 ? (
-                <Bar
+      {/* Charts Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        {/* Monthly Turnover Trend */}
+        <div className="card h-[300px]">
+          <h2 className="text-xl font-semibold text-text-primary mb-2">Monthly Turnover Trend</h2>
+          <div className="h-[240px] p-3" style={{position: 'relative'}}>
+            {trendlineData.labels.length > 0 ? (
+              <>
+                <Line
+                  ref={chartRef}
                   data={{
-                    labels: dailyTurnover14Days.labels,
+                    labels: trendlineData.labels,
                     datasets: [
                       {
-                        label: 'Daily Turnover',
-                        data: dailyTurnover14Days.data,
-                        backgroundColor: '#FF492C',
+                        label: 'Cumulative Turnover',
+                        data: trendlineData.cumulativeTurnover,
                         borderColor: '#FF492C',
-                        borderWidth: 1,
-                        borderRadius: 4,
-                        borderSkipped: false,
-                        yAxisID: 'y',
-                        order: 1,
-                      },
-                      {
-                        label: 'Avg Basket Value',
-                        data: dailyBasket14Days.data,
-                        type: 'line',
-                        borderColor: '#FFFFFF',
-                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                        backgroundColor: 'rgba(255, 73, 44, 0.1)',
                         borderWidth: 3,
-                        fill: false,
+                        fill: true,
                         tension: 0.4,
-                        pointBackgroundColor: '#FFFFFF',
+                        pointBackgroundColor: '#FF492C',
                         pointBorderColor: '#fff',
                         pointBorderWidth: 2,
                         pointRadius: 0,
                         pointHoverRadius: 0,
-                        yAxisID: 'y1',
-                        order: 0,
+                      },
+                      {
+                        label: 'Prev Year Cumulative',
+                        data: trendlineData.prevYearCumulativeTurnover,
+                        borderColor: '#E2AEA1',
+                        backgroundColor: 'rgba(126, 217, 87, 0.05)',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.4,
+                        borderDash: [8, 6],
+                        pointBackgroundColor: '#7ED957',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 0,
+                        pointHoverRadius: 0,
                       },
                     ],
                   }}
@@ -981,39 +1237,32 @@ const Daily = ({ selectedDate }) => {
                     maintainAspectRatio: false,
                     plugins: {
                       legend: {
-                        display: true,
-                        position: 'top',
-                        labels: {
-                          color: '#fff',
-                          usePointStyle: true,
-                          padding: 20,
-                        },
+                        display: false,
                       },
                       tooltip: {
                         backgroundColor: 'rgba(0, 0, 0, 0.8)',
                         titleColor: '#fff',
                         bodyColor: '#fff',
                         borderWidth: 0,
-                        displayColors: true,
+                        displayColors: false,
+                        axis: 'x',
                         callbacks: {
                           label: function(context) {
+                            const year = new Date().getFullYear() - (context.datasetIndex === 1 ? 1 : 0)
                             const value = context.parsed.y
-                            if (context.datasetIndex === 0) {
-                              // Turnover data
-                              let valueStr = ''
-                              if (value >= 1000000) {
-                                valueStr = `R ${(value / 1000000).toFixed(2)}M`
-                              } else if (value >= 1000) {
-                                valueStr = `R ${(value / 1000).toFixed(0)}k`
-                              } else {
-                                valueStr = `R ${value.toLocaleString('en-ZA')}`
-                              }
-                              return `Turnover: ${valueStr}`
+                            let valueStr = ''
+                            if (value >= 1000000) {
+                              valueStr = `R ${(value / 1000000).toFixed(2)}M`
+                            } else if (value >= 1000) {
+                              valueStr = `R ${(value / 1000).toFixed(0)}k`
                             } else {
-                              // Basket data
-                              return `Avg Basket: R ${value.toLocaleString('en-ZA')}`
+                              valueStr = `R ${value.toLocaleString('en-ZA')}`
                             }
+                            return `${year}: ${valueStr}`
                           },
+                        },
+                        labelTextColor: function(context) {
+                          return context.datasetIndex === 0 ? '#FF492C' : '#E2AEA1'
                         },
                       },
                     },
@@ -1028,11 +1277,8 @@ const Daily = ({ selectedDate }) => {
                         },
                       },
                       y: {
-                        type: 'linear',
-                        display: true,
-                        position: 'left',
                         grid: {
-                          color: 'rgba(156, 163, 175, 0.1)',
+                          display: false,
                         },
                         min: 0,
                         ticks: {
@@ -1048,230 +1294,33 @@ const Daily = ({ selectedDate }) => {
                           }
                         },
                       },
-                      y1: {
-                        type: 'linear',
-                        display: true,
-                        position: 'right',
-                        grid: {
-                          drawOnChartArea: false,
-                        },
-                        min: 0,
-                        ticks: {
-                          color: '#9CA3AF',
-                          callback: function(value) {
-                            return `R${value.toFixed(0)}`
-                          }
-                        },
-                      },
                     },
                     interaction: {
                       intersect: false,
                       mode: 'index',
                     },
+                    elements: {
+                      point: {
+                        radius: 0,
+                        hoverRadius: 0,
+                      },
+                    },
                   }}
                 />
-              ) : (
-                <div className="h-full flex items-center justify-center">
-                  <p className="text-text-secondary">Loading daily turnover data...</p>
-                </div>
-              )}
-            </div>
+                {getYoYBubble()}
+              </>
+            ) : (
+              <div className="h-full flex items-center justify-center">
+                <p className="text-text-secondary">Loading trend data...</p>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Sidebar */}
-        <div className="space-y-3">
-          <div className="card">
-            <h3 className="text-xl font-semibold text-text-primary mb-4">Dispensary Summary</h3>
-            <div className="space-y-4">
-              <div>
-                <div className="flex flex-col gap-0.5">
-                  <div className="flex justify-between items-center">
-                    <span className="text-text-secondary">Scripts Dispensed</span>
-                    <span className="text-text-primary font-medium">
-                      {formatNumber(todayData.scriptsDispensed / 100)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-text-secondary">Dispensary Turnover</span>
-                    <span className="text-text-primary font-medium">
-                      {formatCurrency(todayData.dispensaryTurnover)}
-                    </span>
-                  </div>
-                </div>
-                <div className="mt-6 flex flex-col items-center justify-center relative" style={{ height: 70, width: '100%' }}>
-                  <span className="text-text-secondary">Dispensary %</span>
-                  <Doughnut
-                    data={{
-                      labels: ['Dispensary', 'Other'],
-                      datasets: [
-                        {
-                          data: [dispensaryPercent, 100 - dispensaryPercent],
-                          backgroundColor: ['#FFC300', '#3A3F4B'],
-                          borderWidth: 0,
-                        },
-                      ],
-                    }}
-                    options={{
-                      rotation: -90,
-                      circumference: 180,
-                      cutout: '60%',
-                      plugins: {
-                        legend: { display: false },
-                        tooltip: { enabled: false },
-                      },
-                      responsive: true,
-                      maintainAspectRatio: false,
-                    }}
-                    height={120}
-                  />
-                  <span
-                    className="absolute font-bold text-white"
-                    style={{
-                      fontSize: 28,
-                      top: '95%',
-                      left: '50%',
-                      transform: 'translate(-50%, -50%)',
-                      lineHeight: 1,
-                    }}
-                  >
-                    {Math.round(dispensaryPercent)}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="card">
-            <h3 className="text-xl font-semibold text-text-primary mb-4">Sales Breakdown</h3>
-            <div className="flex items-center justify-center h-50">
-              <Slider
-                dots={true}
-                infinite={false}
-                speed={500}
-                slidesToShow={1}
-                slidesToScroll={1}
-                arrows={false}
-                className="w-full custom-carousel-dots"
-                appendDots={dots => (
-                  <div style={{ marginTop: '-5px' }}>
-                    <ul> {dots} </ul>
-                  </div>
-                )}
-              >
-                {/* Slide 1: Donut Chart */}
-                <div>
-                  <Doughnut
-                    data={{
-                      labels: ['Cash Sales', 'Debtor Sales', 'COD Sales'],
-                      datasets: [
-                        {
-                          data: [todayData.cashSales, todayData.accountSales, todayData.codSales],
-                          backgroundColor: ['#FF492C', '#7ED957', '#8F6ED5'],
-                          borderWidth: 0,
-                        },
-                      ],
-                    }}
-                    options={{
-                      plugins: {
-                        legend: {
-                          display: true,
-                          position: 'bottom',
-                          labels: {
-                            color: '#fff',
-                            font: { size: 11, weight: 'bold' },
-                            usePointStyle: true,
-                            padding: 13,
-                          },
-                        },
-                      },
-                      cutout: '50%',
-                      layout: { padding: 0 },
-                      responsive: true,
-                      maintainAspectRatio: false,
-                    }}
-                    height={160}
-                  />
-                </div>
-                {/* Slide 2: Tender Breakdown Donut Chart */}
-                <div>
-                  <Doughnut
-                    data={{
-                      labels: ['Cash Tenders', 'Credit Card Tenders'],
-                      datasets: [
-                        {
-                          data: [todayData.cashTenders, todayData.creditCardTenders],
-                          backgroundColor: ['#FFC300', '#B57BFF'],
-                          borderWidth: 0,
-                        },
-                      ],
-                    }}
-                    options={{
-                      plugins: {
-                        legend: {
-                          display: true,
-                          position: 'bottom',
-                          labels: {
-                            color: '#fff',
-                            font: { size: 11, weight: 'bold' },
-                            usePointStyle: true,
-                            padding: 13,
-                          },
-                        },
-                      },
-                      cutout: '50%',
-                      layout: { padding: 0 },
-                      responsive: true,
-                      maintainAspectRatio: false,
-                    }}
-                    height={160}
-                  />
-                </div>
-              </Slider>
-            </div>
-          </div>
-
-          {/* Monthly Summary Card */}
-          <div className="card">
-            <h3 className="text-xl font-semibold text-text-primary mb-4">Monthly Best Days</h3>
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-text-secondary">Most Sales</span>
-                <span className="text-text-primary font-medium">
-                  {(() => {
-                    if (!monthlyTurnover.length) return '-';
-                    const maxDay = monthlyTurnover.reduce((max, curr) => curr.turnover > max.turnover ? curr : max, monthlyTurnover[0]);
-                    const date = new Date(maxDay.date);
-                    const day = date.getDate();
-                    const month = date.toLocaleString('en-ZA', { month: 'long' });
-                    return `${day} ${month} - R ${maxDay.turnover.toLocaleString('en-ZA')}`;
-                  })()}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-text-secondary">Best Basket Value</span>
-                <span className="text-text-primary font-medium">
-                  {(() => {
-                    if (!monthlyBasket.length) return '-';
-                    const maxDay = monthlyBasket.reduce((max, curr) => curr.avg_basket_value > max.avg_basket_value ? curr : max, monthlyBasket[0]);
-                    const date = new Date(maxDay.date);
-                    const day = date.getDate();
-                    const month = date.toLocaleString('en-ZA', { month: 'long' });
-                    return `${day} ${month} - R ${maxDay.avg_basket_value.toLocaleString('en-ZA')}`;
-                  })()}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Additional Charts Row - Full Width */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
         {/* 8 Day Turnover Chart */}
-        <div className="card">
-          <h2 className="text-2xl font-semibold text-text-primary mb-2">8 Day Turnover</h2>
-          <div className="h-60 py-0 px-0">
+        <div className="card h-[300px]">
+          <h2 className="text-xl font-semibold text-text-primary mb-4">Daily Turnover Comparison</h2>
+          <div className="h-[240px] px-2">
             {monthlyTurnover12.labels.length > 0 ? (
               <Bar
                 data={{
@@ -1298,6 +1347,11 @@ const Daily = ({ selectedDate }) => {
                 options={{
                   responsive: true,
                   maintainAspectRatio: false,
+                  layout: {
+                    padding: {
+                      bottom: 10
+                    }
+                  },
                   interaction: {
                     mode: 'index',
                     intersect: false,
@@ -1338,6 +1392,7 @@ const Daily = ({ selectedDate }) => {
                         font: {
                           size: 11,
                         },
+                        padding: 8,
                         callback: function(value, index) {
                           const [date, day] = this.getLabelForValue(value);
                           return [date, day];
@@ -1366,67 +1421,320 @@ const Daily = ({ selectedDate }) => {
             )}
           </div>
         </div>
+      </div>
 
-        {/* Daily GP% Trend Chart */}
-        <div className="card">
-          <h2 className="text-2xl font-semibold text-text-primary mb-2">Daily GP% Trend</h2>
-          <div className="h-60 py-0 px-0">
-            {dailyGPPercent30Days.labels.length > 0 ? (
-              <Line
+      {/* Summary Cards Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Dispensary Summary */}
+        <div className="card h-[400px]">
+          <h3 className="text-xl font-semibold text-text-primary mb-4">Dispensary Summary</h3>
+          <div className="space-y-6">
+            {/* Dispensary Stats */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-surface-secondary rounded-lg p-3">
+                <p className="text-sm text-text-secondary mb-1">Scripts Today</p>
+                <p className="text-xl font-bold text-text-primary">
+                  {formatNumber(todayData.scriptsDispensed / 100)}
+                </p>
+              </div>
+              <div className="bg-surface-secondary rounded-lg p-3">
+                <p className="text-sm text-text-secondary mb-1">Avg Script Value</p>
+                <p className="text-xl font-bold text-text-primary">
+                  {formatCurrency(todayData.dispensaryTurnover / todayData.scriptsDispensed * 100)}
+                </p>
+              </div>
+            </div>
+
+            {/* Dispensary Turnover */}
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-sm text-text-secondary">Dispensary</span>
+                  <span className="text-lg font-semibold text-text-primary">
+                    {formatCurrency(todayData.dispensaryTurnover)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-text-secondary">Front Shop</span>
+                  <span className="text-lg font-semibold text-text-primary">
+                    {formatCurrency(todayData.turnover - todayData.dispensaryTurnover)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Dispensary Split Progress Bar */}
+              <div className="space-y-2">
+                <div className="space-y-0.5">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-[#FFC300]"></div>
+                      <span className="text-sm text-text-secondary">Dispensary</span>
+                    </div>
+                    <span className="text-lg font-semibold text-[#FFC300]">{Math.round(dispensaryPercent)}%</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-[#3A3F4B]"></div>
+                      <span className="text-sm text-text-secondary">Front Shop</span>
+                    </div>
+                    <span className="text-lg font-semibold text-[#3A3F4B]">{Math.round(100 - dispensaryPercent)}%</span>
+                  </div>
+                </div>
+
+                <div className="relative">
+                  {/* Target Range Zone */}
+
+                  {/* Base Progress Bar */}
+                  <div className="h-4 bg-[#3A3F4B] rounded-full overflow-hidden relative">
+                    {/* Actual Progress */}
+                    <div 
+                      className="h-full bg-[#FFC300] rounded-full"
+                      style={{ width: `${Math.min(dispensaryPercent, 100)}%` }}
+                    />
+                    {/* Target Range Lines */}
+                    <div 
+                      className="absolute h-full w-[4px] bg-white"
+                      style={{ left: '40%', top: 0 }}
+                    />
+                    <div 
+                      className="absolute h-full w-[4px] bg-white"
+                      style={{ left: '60%', top: 0 }}
+                    />
+                  </div>
+
+                </div>
+
+                {/* Target Indicator */}
+                <div className="pt-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-text-secondary">Target Range: 40-60%</span>
+                    <span className={`text-sm ${
+                      dispensaryPercent >= 40 && dispensaryPercent <= 60 
+                        ? 'text-status-success' 
+                        : 'text-status-warning'
+                    }`}>
+                      {dispensaryPercent >= 40 && dispensaryPercent <= 60 
+                        ? 'Within Target' 
+                        : dispensaryPercent < 40 
+                          ? 'Below Target Range'
+                          : 'Above Target Range'
+                      }
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Sales Breakdown */}
+        <div className="card h-[400px]">
+          <h3 className="text-xl font-semibold text-text-primary mb-4">Sales Breakdown</h3>
+          <div className="space-y-8">
+            {/* Sales Values */}
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-surface-secondary rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2 h-2 rounded-full bg-[#FF492C]" />
+                  <p className="text-xs text-text-secondary">Cash</p>
+                </div>
+                <p className="text-sm font-semibold text-text-primary">{formatCurrency(todayData.cashSales)}</p>
+                <p className="text-xs text-text-secondary mt-1">
+                  {((todayData.cashSales / todayData.turnover) * 100).toFixed(1)}%
+                </p>
+              </div>
+              <div className="bg-surface-secondary rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2 h-2 rounded-full bg-[#7ED957]" />
+                  <p className="text-xs text-text-secondary">Debtors</p>
+                </div>
+                <p className="text-sm font-semibold text-text-primary">{formatCurrency(todayData.accountSales)}</p>
+                <p className="text-xs text-text-secondary mt-1">
+                  {((todayData.accountSales / todayData.turnover) * 100).toFixed(1)}%
+                </p>
+              </div>
+              <div className="bg-surface-secondary rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2 h-2 rounded-full bg-[#8F6ED5]" />
+                  <p className="text-xs text-text-secondary">COD</p>
+                </div>
+                <p className="text-sm font-semibold text-text-primary">{formatCurrency(todayData.codSales)}</p>
+                <p className="text-xs text-text-secondary mt-1">
+                  {((todayData.codSales / todayData.turnover) * 100).toFixed(1)}%
+                </p>
+              </div>
+            </div>
+
+            {/* Payment Methods */}
+            <div>
+              <h4 className="text-xl font-semibold text-text-primary mb-4">Payment Methods</h4>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-[#FFC300]" />
+                    <span className="text-sm text-text-secondary">Cash Tenders</span>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-medium text-text-primary">{formatCurrency(todayData.cashTenders)}</p>
+                    <p className="text-xs text-text-secondary">
+                      {((todayData.cashTenders / (todayData.cashTenders + todayData.creditCardTenders)) * 100).toFixed(1)}%
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-[#FF492C]" />
+                    <span className="text-sm text-text-secondary">Card Payments</span>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-medium text-text-primary">{formatCurrency(todayData.creditCardTenders)}</p>
+                    <p className="text-xs text-text-secondary">
+                      {((todayData.creditCardTenders / (todayData.cashTenders + todayData.creditCardTenders)) * 100).toFixed(1)}%
+                    </p>
+                  </div>
+                </div>
+                <div className="h-4 bg-surface-secondary rounded-full overflow-hidden mt-2 flex">
+                  <div 
+                    className="h-full bg-[#FFC300]"
+                    style={{ 
+                      width: `${(todayData.cashTenders / (todayData.cashTenders + todayData.creditCardTenders)) * 100}%` 
+                    }}
+                  />
+                  <div 
+                    className="h-full bg-[#FF492C]"
+                    style={{ 
+                      width: `${(todayData.creditCardTenders / (todayData.cashTenders + todayData.creditCardTenders)) * 100}%`
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Alerts Card */}
+        <div className="card h-[400px]">
+          <h3 className="text-xl font-semibold text-text-primary mb-4">Alerts</h3>
+          <div className="h-[340px] overflow-y-auto">
+            {(() => {
+              try {
+                const alerts = getAlerts(todayData, previousYearData, sparklineData);
+                
+                if (!alerts || alerts.length === 0) {
+                  return (
+                    <div className="flex items-center justify-center h-full">
+                      <p className="text-text-secondary text-xs">No alerts to display</p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-2">
+                    {alerts.map((alert, index) => (
+                      <div 
+                        key={index} 
+                        className={`p-2 rounded-lg ${
+                          alert.severity === 'critical' 
+                            ? 'bg-status-error bg-opacity-10' 
+                            : alert.severity === 'warning'
+                            ? 'bg-status-warning bg-opacity-10'
+                            : 'bg-status-success bg-opacity-10'
+                        }`}
+                      >
+                        <div className="flex items-start gap-2">
+                          <span className="text-base leading-tight">{alert.icon}</span>
+                          <div>
+                            <h4 className={`text-sm font-medium ${
+                              alert.severity === 'critical' 
+                                ? 'text-status-error' 
+                                : alert.severity === 'warning'
+                                ? 'text-status-warning'
+                                : 'text-status-success'
+                            }`}>
+                              {alert.title}
+                            </h4>
+                            <p className="text-sm text-text-secondary mt-0.5">
+                              {alert.description}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              } catch (error) {
+                console.error('Error rendering alerts:', error);
+                return (
+                  <div className="flex items-center justify-center h-full">
+                    <p className="text-text-secondary text-sm">Error displaying alerts</p>
+                  </div>
+                );
+              }
+            })()}
+          </div>
+        </div>
+      </div>
+
+      {/* Charts Row */}
+      <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* 14 Day Turnover Chart */}
+        <div className="card h-[300px]">
+          <h3 className="text-xl font-semibold text-text-primary mb-4">14 Day Turnover</h3>
+          <div className="h-[220px]">
+            {dailyTurnover14Days.labels.length > 0 ? (
+              <Bar
                 data={{
-                  labels: dailyGPPercent30Days.labels,
+                  labels: dailyTurnover14Days.labels,
                   datasets: [
                     {
-                      label: 'GP%',
-                      data: dailyGPPercent30Days.data,
-                      borderColor: '#7ED957',
-                      backgroundColor: function(context) {
-                        const chart = context.chart;
-                        const {ctx, chartArea} = chart;
-                        if (!chartArea) {
-                          return 'rgba(126, 217, 87, 0.1)';
-                        }
-                        const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-                        gradient.addColorStop(0, 'rgba(126, 217, 87, 0.2)');
-                        gradient.addColorStop(1, 'rgba(126, 217, 87, 0)');
-                        return gradient;
-                      },
-                      borderWidth: 3,
-                      fill: true,
-                      tension: 0.4,
-                      pointBackgroundColor: '#7ED957',
-                      pointBorderColor: '#fff',
-                      pointBorderWidth: 2,
-                      pointRadius: 0,
-                      pointHoverRadius: 6,
-                      pointHoverBorderWidth: 0,
-                      pointHoverBackgroundColor: '#7ED957',
-                      pointHoverBorderColor: '#fff',
-                      spanGaps: true,
+                      type: 'bar',
+                      label: 'Turnover',
+                      data: dailyTurnover14Days.data,
+                      backgroundColor: '#FF492C',
+                      borderRadius: 6,
+                      barPercentage: 0.9,
+                      categoryPercentage: 0.95,
+                      yAxisID: 'y',
+                      order: 2,
                     },
                     {
-                      label: 'Target',
-                      data: Array(dailyGPPercent30Days.labels.length).fill(25),
-                      borderColor: 'rgba(240, 41, 41, 0.5)',
-                      borderWidth: 2,
-                      borderDash: [4, 4],
+                      type: 'line',
+                      label: 'Basket Value',
+                      data: dailyBasket14Days.data,
+                      borderColor: '#FFF',
+                      borderWidth: 3,
                       pointRadius: 0,
-                      fill: false,
-                      tension: 0,
+                      tension: 0.4,
+                      yAxisID: 'y1',
+                      order: 1,
                     }
                   ],
                 }}
                 options={{
                   responsive: true,
                   maintainAspectRatio: false,
+                  layout: {
+                    padding: {
+                      bottom: 10
+                    }
+                  },
                   interaction: {
-                    intersect: false,
                     mode: 'index',
-                    axis: 'x',
+                    intersect: false,
                   },
                   plugins: {
                     legend: {
-                      display: false,
+                      display: true,
+                      position: 'top',
+                      align: 'center',
+                      labels: {
+                        color: '#9CA3AF',
+                        usePointStyle: true,
+                        pointStyle: 'circle',
+                        padding: 15,
+                        boxWidth: 8,
+                        boxHeight: 8,
+                      }
                     },
                     tooltip: {
                       backgroundColor: 'rgba(0, 0, 0, 0.8)',
@@ -1434,8 +1742,11 @@ const Daily = ({ selectedDate }) => {
                       bodyColor: '#fff',
                       callbacks: {
                         label: function(context) {
-                          const value = context.parsed.y;
-                          return `GP: ${value.toFixed(1)}%`;
+                          if (context.dataset.type === 'bar') {
+                            return `Turnover: ${formatCurrency(context.parsed.y)}`;
+                          } else {
+                            return `Basket: ${formatCurrency(context.parsed.y)}`;
+                          }
                         },
                       },
                     },
@@ -1453,25 +1764,167 @@ const Daily = ({ selectedDate }) => {
                       },
                     },
                     y: {
+                      position: 'left',
                       grid: {
                         display: false,
                       },
                       ticks: {
                         color: '#9CA3AF',
                         callback: function(value) {
-                          return `${value.toFixed(1)}%`;
+                          return formatNumber(value);
                         },
                       },
-                      min: 15,
-                      max: 40,
-                      beginAtZero: true,
+                      title: {
+                        display: false,
+                        text: 'Turnover',
+                        color: '#FF492C',
+                      },
+                    },
+                    y1: {
+                      position: 'right',
+                      grid: {
+                        display: false,
+                      },
+                      ticks: {
+                        color: '#9CA3AF',
+                        callback: function(value) {
+                          return formatShortCurrency(value);
+                        },
+                      },
+                      title: {
+                        display: false,
+                        text: 'Basket',
+                        color: '#FF492C',
+                      },
                     },
                   },
                 }}
               />
             ) : (
               <div className="h-full flex items-center justify-center">
-                <p className="text-text-secondary">Loading GP trend data...</p>
+                <p className="text-text-secondary">Loading turnover data...</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Scripts vs Turnover Chart */}
+        <div className="card h-[300px]">
+          <h3 className="text-xl font-semibold text-text-primary mb-4">Scripts vs Turnover Trend</h3>
+          <div className="h-[210px]">
+            {scriptsVsTurnover14Days.labels.length > 0 ? (
+              <Line
+                data={{
+                  labels: scriptsVsTurnover14Days.labels,
+                  datasets: [
+                    {
+                      label: 'Scripts',
+                      data: scriptsVsTurnover14Days.scriptsData,
+                      borderColor: '#8F6ED5',
+                      backgroundColor: 'rgba(143, 110, 213, 0.1)',
+                      yAxisID: 'y',
+                      fill: true,
+                      tension: 0.4,
+                      borderWidth: 3,
+                      pointRadius: 0,
+                    },
+                    {
+                      label: 'Turnover',
+                      data: scriptsVsTurnover14Days.turnoverData,
+                      borderColor: '#FF492C',
+                      yAxisID: 'y1',
+                      tension: 0.4,
+                      borderWidth: 3,
+                      pointRadius: 0,
+                    }
+                  ],
+                }}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  interaction: {
+                    mode: 'index',
+                    intersect: false,
+                  },
+                  plugins: {
+                    legend: {
+                      position: 'top',
+                      labels: {
+                        color: '#9CA3AF',
+                        usePointStyle: true,
+                        pointStyle: 'circle',
+                        padding: 15,
+                        boxWidth: 8,
+                        boxHeight: 8,
+                      }
+                    },
+                    tooltip: {
+                      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                      titleColor: '#fff',
+                      bodyColor: '#fff',
+                      callbacks: {
+                        label: function(context) {
+                          if (context.dataset.label === 'Scripts') {
+                            return `Scripts: ${formatNumber(context.parsed.y)}`;
+                          } else {
+                            return `Turnover: ${formatCurrency(context.parsed.y)}`;
+                          }
+                        },
+                      },
+                    },
+                  },
+                  scales: {
+                    x: {
+                      grid: {
+                        display: false,
+                      },
+                      ticks: {
+                        color: '#9CA3AF',
+                        font: {
+                          size: 11,
+                        },
+                      },
+                    },
+                    y: {
+                      position: 'left',
+                      grid: {
+                        display: false,
+                      },
+                      ticks: {
+                        color: '#9CA3AF',
+                        callback: function(value) {
+                          return formatNumber(value);
+                        },
+                      },
+                      title: {
+                        display: false,
+                        text: 'Scripts',
+                        color: '#8F6ED5',
+                      },
+                    },
+                    y1: {
+                      position: 'right',
+                      grid: {
+                        display: false,
+                      },
+                      ticks: {
+                        color: '#9CA3AF',
+                        callback: function(value) {
+                          return formatShortCurrency(value);
+                        },
+                      },
+                      title: {
+                        display: false,
+                        text: 'Turnover',
+                        color: '#FF492C',
+                      },
+                    },
+                  },
+                }}
+              />
+            ) : (
+              <div className="h-full flex items-center justify-center">
+                <p className="text-text-secondary">Loading trend data...</p>
               </div>
             )}
           </div>
