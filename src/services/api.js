@@ -91,6 +91,13 @@ export const financialAPI = {
     return response.data
   },
 
+  getDailyGPPercentForRange: async (pharmacy, startDate, endDate) => {
+    const response = await api.get(`/daily_gp_percent_for_range/${startDate}/${endDate}`, {
+      headers: { 'X-Pharmacy': pharmacy }
+    })
+    return response.data
+  },
+
   getCostsForRange: async (pharmacy, startDate, endDate) => {
     const response = await api.get(`/costs_for_range/${startDate}/${endDate}`, {
       headers: { 'X-Pharmacy': pharmacy }

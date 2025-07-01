@@ -4,11 +4,12 @@ import { useAuth } from '../contexts/AuthContext'
 import { turnoverAPI, financialAPI, salesAPI } from '../services/api'
 import { Doughnut, Line, Bar } from 'react-chartjs-2'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Title, BarElement, Filler } from 'chart.js'
+import annotationPlugin from 'chartjs-plugin-annotation'
 import 'slick-carousel/slick/slick.css'
 import 'slick-carousel/slick/slick-theme.css'
 import Slider from 'react-slick'
 import './carousel-dots.css'
-ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Title, BarElement, Filler)
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Title, BarElement, Filler, annotationPlugin)
 
 function formatDateLocal(date) {
   const year = date.getFullYear();
@@ -113,6 +114,7 @@ const Monthly = ({ selectedDate }) => {
   const [sidebarData, setSidebarData] = useState({});
   const [dailyTurnover30Days, setDailyTurnover30Days] = useState({ labels: [], data: [] });
   const [dailyDispensaryTurnover30Days, setDailyDispensaryTurnover30Days] = useState({ labels: [], data: [] });
+  const [dailyGPPercent30Days, setDailyGPPercent30Days] = useState({ labels: [], data: [] });
   const [turnover12, setTurnover12] = useState({ daily_turnover: [] });
   const chartRef = useRef(null);
 
@@ -516,47 +518,64 @@ const Monthly = ({ selectedDate }) => {
       const startDateStr = formatDateLocal(startDate);
       const endDateStr = formatDateLocal(endDate);
 
-      console.log('📊 Fetching 30-day daily turnover data:', {
+      console.log('📊 Fetching 30-day daily data:', {
         selectedPharmacy,
         startDateStr,
         endDateStr,
         dateObj: dateObj.toISOString()
       });
 
-      // Fetch both total and dispensary turnover for the last 30 days
-      const [dailyTurnoverData, dailyDispensaryData] = await Promise.all([
+      // Fetch turnover, dispensary, and daily GP data for the last 30 days
+      const [dailyTurnoverData, dailyDispensaryData, dailyGPData] = await Promise.all([
         turnoverAPI.getDailyTurnoverForRange(selectedPharmacy, startDateStr, endDateStr),
-        salesAPI.getDailyDispensaryTurnoverForRange(selectedPharmacy, startDateStr, endDateStr)
+        salesAPI.getDailyDispensaryTurnoverForRange(selectedPharmacy, startDateStr, endDateStr),
+        financialAPI.getDailyGPPercentForRange(selectedPharmacy, startDateStr, endDateStr)
       ]);
+
+      console.log('Raw GP Data received:', dailyGPData);
 
       // Generate date labels and data for the last 30 days
       const labels = [];
       const data = [];
       const dispensaryData = [];
+      const gpData = [];
       const currentDate = new Date(startDate);
       
       while (currentDate <= endDate) {
         const dateStr = formatDateLocal(currentDate);
         const dayData = dailyTurnoverData.daily_turnover?.find(item => item.date === dateStr);
         const dispensaryDayData = dailyDispensaryData.daily_dispensary_turnover?.find(item => item.date === dateStr);
+        const gpDayData = dailyGPData.daily_gp_percent?.find(item => item.date === dateStr);
         
         const dayTurnover = dayData?.turnover || 0;
         const dayDispensaryTurnover = dispensaryDayData?.dispensary_turnover || 0;
+        const dayGPPercent = gpDayData?.gp_percent !== undefined ? gpDayData.gp_percent : 0;
         
-        // Format label as day/month
-        const label = `${currentDate.getDate()}/${currentDate.getMonth() + 1}`;
-        labels.push(label);
-        data.push(dayTurnover);
-        dispensaryData.push(dayDispensaryTurnover);
+        // Only add data points for days with actual trading (turnover > 0 and GP% > 0)
+        if (dayTurnover > 0 && dayGPPercent > 0) {
+          // Format label as day/month
+          const label = `${currentDate.getDate()}/${currentDate.getMonth() + 1}`;
+          labels.push(label);
+          data.push(dayTurnover);
+          dispensaryData.push(dayDispensaryTurnover);
+          gpData.push(dayGPPercent);
+
+          console.log(`Processing GP for ${dateStr}:`, {
+            gpDayData,
+            dayGPPercent
+          });
+        }
         
         currentDate.setDate(currentDate.getDate() + 1);
       }
 
-      console.log('📈 30-day turnover data processed:', {
+      console.log('📈 30-day data processed:', {
         labels,
         totalTurnover: data,
         dispensaryTurnover: dispensaryData,
-        dataPoints: data.length
+        gpPercent: gpData,
+        dataPoints: data.length,
+        filteredOutDays: 30 - data.length
       });
 
       setDailyTurnover30Days({
@@ -567,8 +586,17 @@ const Monthly = ({ selectedDate }) => {
         labels,
         data: dispensaryData
       });
+      setDailyGPPercent30Days({
+        labels,
+        data: gpData
+      });
     } catch (err) {
-      console.error('❌ Error fetching 30-day turnover data:', err);
+      console.error('❌ Error fetching 30-day data:', err);
+      console.error('Error details:', {
+        message: err.message,
+        stack: err.stack,
+        response: err.response?.data
+      });
     }
   };
 
@@ -981,8 +1009,12 @@ const Monthly = ({ selectedDate }) => {
                           borderWidth: 0,
                           displayColors: true,
                           callbacks: {
+                            title: function(tooltipItems) {
+                              return tooltipItems[0].label;
+                            },
                             label: function(context) {
                               const value = context.parsed.y;
+                              const label = context.dataset.label;
                               let valueStr = '';
                               if (value >= 1000000) {
                                 valueStr = `R ${(value / 1000000).toFixed(2)}M`;
@@ -991,8 +1023,20 @@ const Monthly = ({ selectedDate }) => {
                               } else {
                                 valueStr = `R ${value.toLocaleString('en-ZA')}`;
                               }
-                              return `${context.dataset.label}: ${valueStr}`;
+                              return `${label}: ${valueStr}`;
                             },
+                            afterBody: function(tooltipItems) {
+                              if (tooltipItems.length === 2) {
+                                const currentYear = tooltipItems[0].parsed.y;
+                                const prevYear = tooltipItems[1].parsed.y;
+                                const diff = currentYear - prevYear;
+                                const percentChange = ((diff / prevYear) * 100).toFixed(1);
+                                const indicator = diff >= 0 ? '↗' : '↘';
+                                const color = diff >= 0 ? 'success' : 'error';
+                                return [`YoY Change: ${indicator} ${Math.abs(percentChange)}%`];
+                              }
+                              return [];
+                            }
                           },
                         },
                       },
@@ -1000,16 +1044,12 @@ const Monthly = ({ selectedDate }) => {
                         x: {
                           grid: {
                             display: false,
-                            color: 'rgba(156, 163, 175, 0.1)',
                           },
                           ticks: {
                             color: '#9CA3AF',
-                            maxRotation: 45,
                             font: {
                               size: 11,
-                              weight: 'bold'
                             },
-                            padding: 8
                           },
                         },
                         y: {
@@ -1423,6 +1463,228 @@ const Monthly = ({ selectedDate }) => {
             ) : (
               <div className="h-full flex items-center justify-center">
                 <p className="text-text-secondary">Loading turnover data...</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Additional Charts Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+        {/* Daily GP% Trend Chart */}
+        <div className="card">
+          <h2 className="text-2xl font-semibold text-text-primary mb-2">Daily GP% Trend</h2>
+          <div className="h-60 py-0 px-0">
+            {dailyGPPercent30Days.labels.length > 0 ? (
+              <Line
+                data={{
+                  labels: dailyGPPercent30Days.labels,
+                  datasets: [
+                    {
+                      label: 'GP%',
+                      data: dailyGPPercent30Days.data,
+                      borderColor: '#7ED957',
+                      backgroundColor: function(context) {
+                        const chart = context.chart;
+                        const {ctx, chartArea} = chart;
+                        if (!chartArea) {
+                          return 'rgba(126, 217, 87, 0.1)';
+                        }
+                        const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                        gradient.addColorStop(0, 'rgba(126, 217, 87, 0.2)');
+                        gradient.addColorStop(1, 'rgba(126, 217, 87, 0)');
+                        return gradient;
+                      },
+                      borderWidth: 3,
+                      fill: true,
+                      tension: 0.4,
+                      pointBackgroundColor: '#7ED957',
+                      pointBorderColor: '#fff',
+                      pointBorderWidth: 2,
+                      pointRadius: 0,
+                      pointHoverRadius: 6,
+                      pointHoverBorderWidth: 0,
+                      pointHoverBackgroundColor: '#7ED957',
+                      pointHoverBorderColor: '#fff',
+                      spanGaps: true,
+                    },
+                    {
+                      label: 'Target',
+                      data: Array(dailyGPPercent30Days.labels.length).fill(25),
+                      borderColor: 'rgba(240, 41, 41, 0.5)',
+                      borderWidth: 2,
+                      borderDash: [4, 4],
+                      pointRadius: 0,
+                      fill: false,
+                      tension: 0,
+                    }
+                  ],
+                }}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  interaction: {
+                    intersect: false,
+                    mode: 'index',
+                    axis: 'x',
+                  },
+                  plugins: {
+                    legend: {
+                      display: false,
+                    },
+                    tooltip: {
+                      enabled: true,
+                      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                      titleColor: '#fff',
+                      bodyColor: '#fff',
+                      padding: 12,
+                      displayColors: false,
+                      position: 'nearest',
+                      filter: function(tooltipItem) {
+                        // Only show tooltip for the GP% dataset (index 0)
+                        return tooltipItem.datasetIndex === 0;
+                      },
+                      callbacks: {
+                        title: function(tooltipItems) {
+                          const date = new Date(selectedDate);
+                          const month = date.toLocaleString('default', { month: 'long' });
+                          const day = tooltipItems[0].label.split('/')[0];
+                          return `${day} ${month}`;
+                        },
+                        label: function(context) {
+                          const value = context.parsed.y || 0;
+                          return `Gross Profit: ${value.toFixed(1)}%`;
+                        },
+                        afterLabel: function(context) {
+                          const value = context.parsed.y || 0;
+                          let performance = '';
+                          if (value < 25) {
+                            performance = '⚠️ Below Target';
+                          }
+                          return performance;
+                        }
+                      },
+                    },
+                  },
+                  scales: {
+                    x: {
+                      grid: {
+                        display: false,
+                      },
+                      ticks: {
+                        color: '#9CA3AF',
+                        font: {
+                          size: 11,
+                        },
+                      },
+                    },
+                    y: {
+                      grid: {
+                        display: false,
+                      },
+                      ticks: {
+                        color: '#9CA3AF',
+                        callback: function(value) {
+                          return `${value.toFixed(1)}%`;
+                        },
+                      },
+                      min: 15,
+                      max: 40,
+                      beginAtZero: true,
+                    },
+                  },
+                }}
+              />
+            ) : (
+              <div className="h-full flex items-center justify-center">
+                <p className="text-text-secondary">Loading GP trend data...</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Dispensary vs Non-Dispensary Chart */}
+        <div className="card">
+          <h2 className="text-2xl font-semibold text-text-primary mb-2">Dispensary vs Frontshop</h2>
+          <div className="h-60 py-0 px-0">
+            {monthlyTurnover12.labels.length > 0 ? (
+              <Bar
+                data={{
+                  labels: monthlyTurnover12.labels,
+                  datasets: [
+                    {
+                      label: 'Dispensary',
+                      data: monthlyTurnover12.data.map(total => total * (dispensaryPercent / 100)),
+                      backgroundColor: '#FFC300',
+                      borderRadius: 6,
+                      stack: 'stack0',
+                    },
+                    {
+                      label: 'Frontshop',
+                      data: monthlyTurnover12.data.map(total => total * (1 - dispensaryPercent / 100)),
+                      backgroundColor: '#3A3F4B',
+                      borderRadius: 6,
+                      stack: 'stack0',
+                    }
+                  ],
+                }}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: {
+                      display: true,
+                      position: 'top',
+                      labels: {
+                        color: '#9CA3AF',
+                        usePointStyle: true,
+                        pointStyle: 'circle',
+                        padding: 5,
+                        boxWidth: 8,
+                        boxHeight: 8,
+                      },
+                    },
+                    tooltip: {
+                      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                      titleColor: '#fff',
+                      bodyColor: '#fff',
+                      callbacks: {
+                        label: function(context) {
+                          return `${context.dataset.label}: ${formatCurrency(context.parsed.y)}`;
+                        },
+                      },
+                    },
+                  },
+                  scales: {
+                    x: {
+                      grid: {
+                        display: false,
+                      },
+                      ticks: {
+                        color: '#9CA3AF',
+                        font: {
+                          size: 11,
+                        },
+                      },
+                    },
+                    y: {
+                      stacked: true,
+                      grid: {
+                        display: false,
+                      },
+                      ticks: {
+                        color: '#9CA3AF',
+                        callback: function(value) {
+                          return formatShortCurrency(value);
+                        },
+                      },
+                    },
+                  },
+                }}
+              />
+            ) : (
+              <div className="h-full flex items-center justify-center">
+                <p className="text-text-secondary">Loading dispensary data...</p>
               </div>
             )}
           </div>

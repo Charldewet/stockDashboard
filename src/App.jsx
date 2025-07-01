@@ -80,7 +80,7 @@ function AppContent() {
             <>
               <Navbar selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
               <main className="pt-16">
-                <Yearly />
+                <Yearly selectedDate={selectedDate} />
               </main>
             </>
           </ProtectedRoute>

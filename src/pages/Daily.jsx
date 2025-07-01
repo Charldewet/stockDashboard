@@ -3,12 +3,12 @@ import { TrendingUp, DollarSign, ShoppingCart, ShoppingBasket, Users, AlertCircl
 import { useAuth } from '../contexts/AuthContext'
 import { turnoverAPI, financialAPI, salesAPI } from '../services/api'
 import { Doughnut, Line, Bar } from 'react-chartjs-2'
-import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Title, BarElement } from 'chart.js'
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Title, BarElement, Filler } from 'chart.js'
 import 'slick-carousel/slick/slick.css'
 import 'slick-carousel/slick/slick-theme.css'
 import Slider from 'react-slick'
 import './carousel-dots.css'
-ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Title, BarElement)
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Title, BarElement, Filler)
 
 function formatDateLocal(date) {
   console.log('formatDateLocal input:', {
@@ -99,6 +99,10 @@ const Daily = ({ selectedDate }) => {
   const chartRef = useRef(null)
   const [monthlyTurnover, setMonthlyTurnover] = useState([])
   const [monthlyBasket, setMonthlyBasket] = useState([])
+  // New state variables for additional charts
+  const [monthlyTurnover12, setMonthlyTurnover12] = useState({ labels: [], data: [], prevYearData: [] })
+  const [monthlyBasket12, setMonthlyBasket12] = useState({ labels: [], data: [] })
+  const [dailyGPPercent30Days, setDailyGPPercent30Days] = useState({ labels: [], data: [] })
 
   useEffect(() => {
     console.log('🔥 DAILY COMPONENT EFFECT TRIGGERED 🔥', {
@@ -119,6 +123,8 @@ const Daily = ({ selectedDate }) => {
       fetchDailyTurnover14Days(selectedDate)
       fetchDailyBasket14Days(selectedDate)
       fetchMonthlyTurnoverAndBasket(selectedDate)
+      fetch8DayTurnover(selectedDate)
+      fetch30DayGPTrend(selectedDate)
     }
     // eslint-disable-next-line
   }, [selectedPharmacy, selectedDate])
@@ -438,6 +444,106 @@ const Daily = ({ selectedDate }) => {
       setMonthlyBasket(dailyBasketData.daily_avg_basket || [])
     } catch (err) {
       console.error('Error fetching monthly turnover and basket data:', err)
+    }
+  }
+
+  const fetch8DayTurnover = async (dateObj) => {
+    try {
+      // Calculate date range for last 8 days (selected date + 7 preceding days)
+      const endDate = new Date(dateObj)
+      const startDate = new Date(dateObj)
+      startDate.setDate(startDate.getDate() - 7) // Go back 7 days
+
+      // Calculate corresponding dates from previous year
+      const prevYearEndDate = getPreviousYearSameDayOfWeek(endDate)
+      const prevYearStartDate = getPreviousYearSameDayOfWeek(startDate)
+      
+      const startDateStr = formatDateLocal(startDate)
+      const endDateStr = formatDateLocal(endDate)
+      const prevYearStartDateStr = formatDateLocal(prevYearStartDate)
+      const prevYearEndDateStr = formatDateLocal(prevYearEndDate)
+
+      // Fetch daily turnover data for both current and previous year
+      const [turnoverData, prevYearTurnoverData] = await Promise.all([
+        turnoverAPI.getDailyTurnoverForRange(selectedPharmacy, startDateStr, endDateStr),
+        turnoverAPI.getDailyTurnoverForRange(selectedPharmacy, prevYearStartDateStr, prevYearEndDateStr)
+      ])
+
+      // Process the data
+      const labels = []
+      const turnoverValues = []
+      const prevYearTurnoverValues = []
+      const currentDate = new Date(startDate)
+      const prevYearDate = new Date(prevYearStartDate)
+
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+      while (currentDate <= endDate) {
+        const dateStr = formatDateLocal(currentDate)
+        const prevYearDateStr = formatDateLocal(prevYearDate)
+        
+        const dayData = turnoverData.daily_turnover?.find(item => item.date === dateStr)
+        const prevYearDayData = prevYearTurnoverData.daily_turnover?.find(item => item.date === prevYearDateStr)
+        
+        // Format label as date and day
+        const dateLabel = `${currentDate.getDate()}/${currentDate.getMonth() + 1}`
+        const dayLabel = days[currentDate.getDay()]
+        labels.push([dateLabel, dayLabel]) // Store as array of [date, day]
+        
+        turnoverValues.push(dayData?.turnover || 0)
+        prevYearTurnoverValues.push(prevYearDayData?.turnover || 0)
+        
+        currentDate.setDate(currentDate.getDate() + 1)
+        prevYearDate.setDate(prevYearDate.getDate() + 1)
+      }
+
+      setMonthlyTurnover12({ 
+        labels, 
+        data: turnoverValues,
+        prevYearData: prevYearTurnoverValues 
+      })
+      setMonthlyBasket12({ labels: [], data: [] }) // Clear basket data since we don't need it
+
+    } catch (err) {
+      console.error('Error fetching 8-day turnover data:', err)
+    }
+  }
+
+  // New function to fetch 30-day GP trend data
+  const fetch30DayGPTrend = async (dateObj) => {
+    try {
+      // Calculate date range for last 30 days
+      const endDate = new Date(dateObj)
+      const startDate = new Date(dateObj)
+      startDate.setDate(startDate.getDate() - 29) // Go back 29 days for a total of 30 days
+      
+      const startDateStr = formatDateLocal(startDate)
+      const endDateStr = formatDateLocal(endDate)
+
+      // Fetch daily GP data
+      const gpData = await financialAPI.getGPForRange(selectedPharmacy, startDateStr, endDateStr)
+
+      // Process the data
+      const labels = []
+      const gpValues = []
+      const currentDate = new Date(startDate)
+
+      while (currentDate <= endDate) {
+        const dateStr = formatDateLocal(currentDate)
+        const dayData = gpData.daily_gp?.find(item => item.date === dateStr)
+        
+        // Format label as day/month
+        const label = `${currentDate.getDate()}/${currentDate.getMonth() + 1}`
+        labels.push(label)
+        gpValues.push(dayData?.gp_percent || 0)
+        
+        currentDate.setDate(currentDate.getDate() + 1)
+      }
+
+      setDailyGPPercent30Days({ labels, data: gpValues })
+
+    } catch (err) {
+      console.error('Error fetching 30-day GP trend data:', err)
     }
   }
 
@@ -1156,6 +1262,218 @@ const Daily = ({ selectedDate }) => {
                 </span>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Additional Charts Row - Full Width */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        {/* 8 Day Turnover Chart */}
+        <div className="card">
+          <h2 className="text-2xl font-semibold text-text-primary mb-2">8 Day Turnover</h2>
+          <div className="h-60 py-0 px-0">
+            {monthlyTurnover12.labels.length > 0 ? (
+              <Bar
+                data={{
+                  labels: monthlyTurnover12.labels.map(([date, day]) => [date, day]),
+                  datasets: [
+                    {
+                      label: 'Current Year',
+                      data: monthlyTurnover12.data,
+                      backgroundColor: '#F6C643',
+                      borderRadius: 6,
+                      barPercentage: 0.9,
+                      categoryPercentage: 0.85,
+                    },
+                    {
+                      label: 'Previous Year',
+                      data: monthlyTurnover12.prevYearData,
+                      backgroundColor: '#3B3F4A',
+                      borderRadius: 6,
+                      barPercentage: 0.9,
+                      categoryPercentage: 0.85,
+                    }
+                  ],
+                }}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  interaction: {
+                    mode: 'index',
+                    intersect: false,
+                  },
+                  plugins: {
+                    legend: {
+                      display: true,
+                      position: 'top',
+                      labels: {
+                        color: '#9CA3AF',
+                        usePointStyle: true,
+                        pointStyle: 'circle',
+                        padding: 5,
+                        boxWidth: 8,
+                        boxHeight: 8,
+                      },
+                    },
+                    tooltip: {
+                      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                      titleColor: '#fff',
+                      bodyColor: '#fff',
+                      callbacks: {
+                        label: function(context) {
+                          const value = context.parsed.y;
+                          const year = context.dataset.label === 'Current Year' ? new Date().getFullYear() : new Date().getFullYear() - 1;
+                          return `${year}: ${formatCurrency(value)}`;
+                        },
+                      },
+                    },
+                  },
+                  scales: {
+                    x: {
+                      grid: {
+                        display: false,
+                      },
+                      ticks: {
+                        color: '#9CA3AF',
+                        font: {
+                          size: 11,
+                        },
+                        callback: function(value, index) {
+                          const [date, day] = this.getLabelForValue(value);
+                          return [date, day];
+                        },
+                      },
+                    },
+                    y: {
+                      grid: {
+                        display: false,
+                      },
+                      ticks: {
+                        color: '#9CA3AF',
+                        callback: function(value) {
+                          return formatShortCurrency(value);
+                        },
+                      },
+                      beginAtZero: true,
+                    },
+                  },
+                }}
+              />
+            ) : (
+              <div className="h-full flex items-center justify-center">
+                <p className="text-text-secondary">Loading turnover data...</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Daily GP% Trend Chart */}
+        <div className="card">
+          <h2 className="text-2xl font-semibold text-text-primary mb-2">Daily GP% Trend</h2>
+          <div className="h-60 py-0 px-0">
+            {dailyGPPercent30Days.labels.length > 0 ? (
+              <Line
+                data={{
+                  labels: dailyGPPercent30Days.labels,
+                  datasets: [
+                    {
+                      label: 'GP%',
+                      data: dailyGPPercent30Days.data,
+                      borderColor: '#7ED957',
+                      backgroundColor: function(context) {
+                        const chart = context.chart;
+                        const {ctx, chartArea} = chart;
+                        if (!chartArea) {
+                          return 'rgba(126, 217, 87, 0.1)';
+                        }
+                        const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                        gradient.addColorStop(0, 'rgba(126, 217, 87, 0.2)');
+                        gradient.addColorStop(1, 'rgba(126, 217, 87, 0)');
+                        return gradient;
+                      },
+                      borderWidth: 3,
+                      fill: true,
+                      tension: 0.4,
+                      pointBackgroundColor: '#7ED957',
+                      pointBorderColor: '#fff',
+                      pointBorderWidth: 2,
+                      pointRadius: 0,
+                      pointHoverRadius: 6,
+                      pointHoverBorderWidth: 0,
+                      pointHoverBackgroundColor: '#7ED957',
+                      pointHoverBorderColor: '#fff',
+                      spanGaps: true,
+                    },
+                    {
+                      label: 'Target',
+                      data: Array(dailyGPPercent30Days.labels.length).fill(25),
+                      borderColor: 'rgba(240, 41, 41, 0.5)',
+                      borderWidth: 2,
+                      borderDash: [4, 4],
+                      pointRadius: 0,
+                      fill: false,
+                      tension: 0,
+                    }
+                  ],
+                }}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  interaction: {
+                    intersect: false,
+                    mode: 'index',
+                    axis: 'x',
+                  },
+                  plugins: {
+                    legend: {
+                      display: false,
+                    },
+                    tooltip: {
+                      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                      titleColor: '#fff',
+                      bodyColor: '#fff',
+                      callbacks: {
+                        label: function(context) {
+                          const value = context.parsed.y;
+                          return `GP: ${value.toFixed(1)}%`;
+                        },
+                      },
+                    },
+                  },
+                  scales: {
+                    x: {
+                      grid: {
+                        display: false,
+                      },
+                      ticks: {
+                        color: '#9CA3AF',
+                        font: {
+                          size: 11,
+                        },
+                      },
+                    },
+                    y: {
+                      grid: {
+                        display: false,
+                      },
+                      ticks: {
+                        color: '#9CA3AF',
+                        callback: function(value) {
+                          return `${value.toFixed(1)}%`;
+                        },
+                      },
+                      min: 15,
+                      max: 40,
+                      beginAtZero: true,
+                    },
+                  },
+                }}
+              />
+            ) : (
+              <div className="h-full flex items-center justify-center">
+                <p className="text-text-secondary">Loading GP trend data...</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
