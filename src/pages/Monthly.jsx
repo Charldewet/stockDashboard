@@ -716,75 +716,75 @@ const Monthly = ({ selectedDate }) => {
       </div>
 
       {/* Quick Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-        <div className="card">
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 mb-4">
+        <div className="card sm:p-4 p-3">
           <div className="flex items-center justify-between h-full">
             <div>
-              <p className="text-text-secondary text-sm font-medium">Total Turnover</p>
-              <p className="text-2xl font-bold text-accent-primary">
+              <p className="text-text-secondary text-xs sm:text-sm font-medium">Monthly Turnover</p>
+              <p className="text-lg sm:text-xl font-bold text-accent-primary">
                 {formatCurrency(mtdData.turnover)}
               </p>
-              <div className="flex items-center gap-2 mt-1">
-                <p className="text-text-secondary text-[12px]">
-                  Prev Year: {formatCurrency(previousYearMtd.turnover)}
+              <div className="flex items-center gap-1 sm:gap-2 mt-1">
+                <p className="text-text-secondary text-xs sm:text-sm">
+                  vs Last Year
                 </p>
                 {(() => {
                   const indicator = getChangeIndicator(mtdData.turnover, previousYearMtd.turnover)
                   return (
-                    <span className={`text-[12px] font-medium ${indicator.color}`}>
+                    <span className={`text-xs sm:text-sm font-medium ${indicator.color}`}>
                       {indicator.arrow} {indicator.text}
                     </span>
                   )
                 })()}
               </div>
             </div>
-            <div className="w-12 h-12 bg-accent-primary rounded-lg flex items-center justify-center">
-              <DollarSign className="text-surface-secondary" size={24} />
+            <div className="w-8 h-8 sm:w-12 sm:h-12 bg-accent-primary rounded-lg flex items-center justify-center">
+              <DollarSign className="text-surface-secondary w-4 h-4 sm:w-6 sm:h-6" />
             </div>
           </div>
         </div>
-        <div className="card">
+        <div className="card sm:p-4 p-3">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-text-secondary text-sm font-medium">Gross Profit</p>
+              <p className="text-text-secondary text-xs sm:text-sm font-medium">Gross Profit</p>
               <div className="flex flex-col">
-                <span className="text-xl font-bold text-text-primary">{formatCurrency(mtdData.grossProfit)}</span>
-                <p className="text-text-secondary text-sm font-medium">GP %</p>
-                <span className="text-xl font-semibold text-text-primary">{Number(mtdData.grossProfitPercent).toFixed(1)}%</span>
+                <span className="text-lg sm:text-xl font-bold text-text-primary">{formatCurrency(mtdData.grossProfit)}</span>
+                <p className="text-text-secondary text-xs sm:text-sm font-medium">GP %</p>
+                <span className="text-lg sm:text-xl font-semibold text-text-primary">{Number(mtdData.grossProfitPercent).toFixed(1)}%</span>
               </div>
             </div>
-            <div className="w-12 h-12 bg-chart-gold rounded-lg flex items-center justify-center">
-              <TrendingUp className="text-surface-secondary" size={24} />
+            <div className="w-8 h-8 sm:w-12 sm:h-12 bg-chart-gold rounded-lg flex items-center justify-center">
+              <TrendingUp className="text-surface-secondary w-4 h-4 sm:w-6 sm:h-6" />
             </div>
           </div>
         </div>
-        <div className="card">
+        <div className="card sm:p-4 p-3">
           <div className="flex items-center justify-between h-full">
             <div>
-              <p className="text-text-secondary text-sm font-medium">Cost of Sales</p>
+              <p className="text-text-secondary text-xs sm:text-sm font-medium">Cost of Sales</p>
               <div className="flex flex-col">
-                <span className="text-xl font-bold text-cost-sales">{formatCurrency(mtdData.costOfSales)}</span>
-                <p className="text-text-secondary text-sm font-medium">Purchases</p>
-                <span className="text-xl font-bold text-accent-primary">{formatCurrency(mtdData.purchases)}</span>
+                <span className="text-lg sm:text-xl font-bold text-cost-sales">{formatCurrency(mtdData.costOfSales)}</span>
+                <p className="text-text-secondary text-xs sm:text-sm font-medium">Purchases</p>
+                <span className="text-lg sm:text-xl font-bold text-accent-primary">{formatCurrency(mtdData.purchases)}</span>
               </div>
             </div>
-            <div className="w-12 h-12 bg-cost-sales rounded-lg flex items-center justify-center">
-              <ShoppingCart className="text-surface-secondary" size={24} />
+            <div className="w-8 h-8 sm:w-12 sm:h-12 bg-cost-sales rounded-lg flex items-center justify-center">
+              <ShoppingCart className="text-surface-secondary w-4 h-4 sm:w-6 sm:h-6" />
             </div>
           </div>
         </div>
-        <div className="card">
+        <div className="card sm:p-4 p-3">
           <div className="flex items-center justify-between h-full">
             <div>
-              <p className="text-text-secondary text-sm font-medium">Avg Basket Value</p>
+              <p className="text-text-secondary text-xs sm:text-sm font-medium">Avg Basket Value</p>
               <div className="flex flex-col">
-                <span className="text-xl font-bold text-text-primary">{formatCurrency(mtdData.avgBasket)}</span>
-                <p className="text-text-secondary text-sm font-medium">Avg Basket Size</p>
-                <span className="text-xl font-semibold text-text-primary">{Number(mtdData.avgBasketSize).toFixed(1)} items</span>
+                <span className="text-lg sm:text-xl font-bold text-text-primary">{formatCurrency(mtdData.avgBasket)}</span>
+                <p className="text-text-secondary text-xs sm:text-sm font-medium">Avg Basket Size</p>
+                <span className="text-lg sm:text-xl font-semibold text-text-primary">{Number(mtdData.avgBasketSize).toFixed(1)} items</span>
               </div>
             </div>
-            <div className="w-12 h-12 bg-accent-secondary-purple rounded-lg flex items-center justify-center">
-              <ShoppingBasket className="text-surface-secondary" size={24} />
+            <div className="w-8 h-8 sm:w-12 sm:h-12 bg-accent-secondary-purple rounded-lg flex items-center justify-center">
+              <ShoppingBasket className="text-surface-secondary w-4 h-4 sm:w-6 sm:h-6" />
             </div>
           </div>
         </div>
@@ -1280,10 +1280,6 @@ const Monthly = ({ selectedDate }) => {
 
       {/* Full Width Side by Side Charts */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-0.5">
-        {console.log('Rendering charts with data:', {
-          turnover12Data: turnover12?.daily_turnover,
-          monthlyTurnover12Data: monthlyTurnover12,
-        })}
         {/* 12 Month Turnover Chart */}
         <div className="card">
           <h2 className="text-2xl font-semibold text-text-primary mb-2">12 Month Turnover</h2>
