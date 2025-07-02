@@ -124,6 +124,20 @@ export const financialAPI = {
       headers: { 'X-Pharmacy': pharmacy }
     })
     return response.data
+  },
+
+  getDailyPurchasesForRange: async (pharmacy, startDate, endDate) => {
+    const response = await api.get(`/daily_purchases_for_range/${startDate}/${endDate}`, {
+      headers: { 'X-Pharmacy': pharmacy }
+    })
+    return response.data
+  },
+
+  getDailyCostOfSalesForRange: async (pharmacy, startDate, endDate) => {
+    const response = await api.get(`/daily_cost_of_sales_for_range/${startDate}/${endDate}`, {
+      headers: { 'X-Pharmacy': pharmacy }
+    })
+    return response.data
   }
 }
 
