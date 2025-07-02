@@ -1134,7 +1134,7 @@ const Monthly = ({ selectedDate }) => {
 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         {/* Cumulative Purchases vs Cost of Sales */}
         <div className="card h-[300px]">
-          <h2 className="text-xl font-semibold text-text-primary mb-2">Cumulative Purchases vs Cost of Sales</h2>
+          <h2 className="text-xl font-semibold text-text-primary mb-2">Purchases vs Cost of Sales</h2>
           <div className="h-[240px] p-3" style={{position: 'relative'}}>
               {dailyPurchases30Days.labels.length > 0 ? (
                 <Line
