@@ -1373,9 +1373,20 @@ def start_periodic_fetch_once():
 
 start_periodic_fetch_once()
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='../dist', static_url_path='')
 CORS(app, resources={r"/api/*": {"origins": ["https://tlcwebdashboard2.onrender.com", "http://localhost:5173", "http://localhost:3000"]}})
 app.register_blueprint(api_bp)
+
+# Catch-all route to serve React app for all non-API routes
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_react_app(path):
+    # Don't interfere with API routes
+    if path.startswith('api/'):
+        return app.send_static_file('index.html')
+    
+    # Serve the React app for all other routes
+    return app.send_static_file('index.html')
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000) 

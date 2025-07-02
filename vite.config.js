@@ -13,5 +13,6 @@ export default defineConfig({
     sourcemap: false,
     minify: 'terser',
     chunkSizeWarningLimit: 1600,
-  }
+  },
+  base: './' // Use relative paths for assets
 }) 
