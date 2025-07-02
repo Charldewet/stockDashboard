@@ -9,7 +9,6 @@ import 'slick-carousel/slick/slick.css'
 import 'slick-carousel/slick/slick-theme.css'
 import Slider from 'react-slick'
 import './carousel-dots.css'
-import { useTheme } from '../contexts/ThemeContext'
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Title, BarElement, Filler)
 
 // SparklineChart component for quick stats
@@ -285,7 +284,6 @@ const Daily = ({ selectedDate }) => {
     scriptsData: [],
     turnoverData: []
   });
-  const { isDarkMode } = useTheme();
 
   useEffect(() => {
     console.log('🔥 DAILY COMPONENT EFFECT TRIGGERED 🔥', {
@@ -955,9 +953,9 @@ const Daily = ({ selectedDate }) => {
   const getTrendIndicator = (currentValue, previousValue) => {
     const percentChange = calculatePercentageChange(currentValue, previousValue)
     if (percentChange > 0) {
-      return <TrendingUp className={isDarkMode ? 'text-surface-secondary w-4 h-4 sm:w-6 sm:h-6' : 'text-white w-4 h-4 sm:w-6 sm:h-6'} />
+      return <TrendingUp className="w-4 h-4 text-status-success" />
     } else if (percentChange < 0) {
-      return <TrendingDown className={isDarkMode ? 'text-surface-secondary w-4 h-4 sm:w-6 sm:h-6' : 'text-white w-4 h-4 sm:w-6 sm:h-6'} />
+      return <TrendingDown className="w-4 h-4 text-status-error" />
     }
     return null
   }
@@ -1019,7 +1017,7 @@ const Daily = ({ selectedDate }) => {
                 </p>
               </div>
               <div className="w-8 h-8 sm:w-12 sm:h-12 bg-accent-primary rounded-lg flex items-center justify-center">
-                <DollarSign className={isDarkMode ? 'text-surface-secondary w-4 h-4 sm:w-6 sm:h-6' : 'text-white w-4 h-4 sm:w-6 sm:h-6'} />
+                <DollarSign className="text-surface-secondary w-4 h-4 sm:w-6 sm:h-6" />
               </div>
             </div>
             <div className="flex items-center gap-1 sm:gap-2 mb-2">
@@ -1048,16 +1046,16 @@ const Daily = ({ selectedDate }) => {
               <div className="flex flex-col gap-2">
                 <div>
                   <p className="text-text-secondary text-xs sm:text-sm font-medium">Gross Profit %</p>
-                  <span className={isDarkMode ? 'text-chart-gold text-xl sm:text-3xl font-bold' : 'text-[#B38F00] text-xl sm:text-3xl font-bold'}>
+                  <p className="text-lg sm:text-2xl font-bold text-chart-gold">
                     {Number(todayData.grossProfitPercent).toFixed(1)}%
-                  </span>
+                  </p>
                 </div>
                 <div>
                   <p className="text-text-secondary text-xs sm:text-sm font-medium">Gross Profit: {formatCurrency(todayData.grossProfit)}</p>
                 </div>
               </div>
               <div className="w-8 h-8 sm:w-12 sm:h-12 bg-chart-gold rounded-lg flex items-center justify-center">
-                <TrendingUp className={isDarkMode ? 'text-surface-secondary w-4 h-4 sm:w-6 sm:h-6' : 'text-white w-4 h-4 sm:w-6 sm:h-6'} />
+                <TrendingUp className="text-surface-secondary w-4 h-4 sm:w-6 sm:h-6" />
               </div>
             </div>
             {sparklineData.gpPercent && sparklineData.gpPercent.length > 0 && (
@@ -1074,19 +1072,19 @@ const Daily = ({ selectedDate }) => {
               <div className="flex flex-col gap-2">
                 <div>
                   <p className="text-text-secondary text-xs sm:text-sm font-medium">Cost of Sales</p>
-                  <span className={isDarkMode ? 'text-cost-sales text-lg sm:text-2xl font-bold' : 'text-[#128915] text-lg sm:text-2xl font-bold'}>
+                  <p className="text-lg sm:text-2xl font-bold text-cost-sales">
                     {formatCurrency(todayData.costOfSales)}
-                  </span>
+                  </p>
                 </div>
                 <div>
                   <p className="text-text-secondary text-xs sm:text-sm font-medium">Purchases</p>
-                  <span className={isDarkMode ? 'text-cost-sales text-lg sm:text-2xl font-bold' : 'text-[#128915] text-lg sm:text-2xl font-bold'}>
+                  <p className="text-lg sm:text-2xl font-bold text-cost-sales">
                     {formatCurrency(todayData.purchases)}
-                  </span>
+                  </p>
                 </div>
               </div>
               <div className="w-8 h-8 sm:w-12 sm:h-12 bg-cost-sales rounded-lg flex items-center justify-center">
-                <ShoppingCart className={isDarkMode ? 'text-surface-secondary w-4 h-4 sm:w-6 sm:h-6' : 'text-white w-4 h-4 sm:w-6 sm:h-6'} />
+                <ShoppingCart className="text-surface-secondary w-4 h-4 sm:w-6 sm:h-6" />
               </div>
             </div>
             {sparklineData.costOfSales.length > 0 && (
@@ -1105,7 +1103,7 @@ const Daily = ({ selectedDate }) => {
                 </p>
               </div>
               <div className="w-8 h-8 sm:w-12 sm:h-12 bg-accent-secondary-purple rounded-lg flex items-center justify-center">
-                <ShoppingBasket className={isDarkMode ? 'text-surface-secondary w-4 h-4 sm:w-6 sm:h-6' : 'text-white w-4 h-4 sm:w-6 sm:h-6'} />
+                <ShoppingBasket className="text-surface-secondary w-4 h-4 sm:w-6 sm:h-6" />
               </div>
             </div>
             <div className="flex items-center gap-1 sm:gap-2 mb-2">
@@ -1703,7 +1701,7 @@ const Daily = ({ selectedDate }) => {
                       type: 'line',
                       label: 'Basket Value',
                       data: dailyBasket14Days.data,
-                      borderColor: isDarkMode ? '#FFF' : '#1E293B',
+                      borderColor: '#FFF',
                       borderWidth: 3,
                       pointRadius: 0,
                       tension: 0.4,
@@ -1728,6 +1726,7 @@ const Daily = ({ selectedDate }) => {
                     legend: {
                       display: true,
                       position: 'top',
+                      align: 'center',
                       labels: {
                         color: '#9CA3AF',
                         usePointStyle: true,
