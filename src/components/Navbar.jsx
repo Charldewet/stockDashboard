@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Calendar as CalendarIcon, BarChart3, TrendingUp, Package, LogOut, ChevronDown, X } from 'lucide-react'
+import { Calendar as CalendarIcon, BarChart3, TrendingUp, Package, LogOut, ChevronDown } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import DateCalendar from './DateCalendar'
 
@@ -8,7 +8,6 @@ const Navbar = ({ selectedDate, setSelectedDate }) => {
   const [isScrolled, setIsScrolled] = useState(false)
   const [showPharmacyDropdown, setShowPharmacyDropdown] = useState(false)
   const [showMobilePharmacyDropdown, setShowMobilePharmacyDropdown] = useState(false)
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [showCalendar, setShowCalendar] = useState(false)
   const [showMobileCalendar, setShowMobileCalendar] = useState(false)
   const location = useLocation()
@@ -45,9 +44,8 @@ const Navbar = ({ selectedDate, setSelectedDate }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Close mobile menu on route change
+  // Close mobile calendar on route change
   useEffect(() => {
-    setMobileMenuOpen(false)
     setShowMobileCalendar(false)
   }, [location.pathname])
 
@@ -192,7 +190,7 @@ const Navbar = ({ selectedDate, setSelectedDate }) => {
             )}
           </div>
 
-          {/* Mobile Right Side - Pharmacy Selector & Menu Button */}
+          {/* Mobile Right Side - Pharmacy Selector, Calendar, & Logout */}
           <div className="md:hidden flex items-center space-x-2">
             {/* Pharmacy Selector (Mobile) */}
             {pharmacies.length > 0 && (
@@ -227,95 +225,45 @@ const Navbar = ({ selectedDate, setSelectedDate }) => {
               </div>
             )}
 
-            {/* Mobile Menu Button */}
-            <button
-              className="text-text-secondary hover:text-text-primary p-2"
-              onClick={() => setMobileMenuOpen((open) => !open)}
-              aria-label="Open navigation menu"
-            >
-              {mobileMenuOpen ? (
-                <X className="w-6 h-6" />
-              ) : (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile Navigation */}
-      <div className={`md:hidden transition-all duration-200 ${mobileMenuOpen ? 'block' : 'hidden'}`}>
-        <div className="px-2 pt-2 pb-3 space-y-1 bg-surface-secondary border-t border-border">
-          {/* Calendar Icon and Date Selector (Mobile only) */}
-          <div className="mb-4" ref={mobileCalendarRef}>
-            <button
-              className={`flex items-center w-full px-3 py-2 rounded-lg transition-all duration-200 ease-out ${showMobileCalendar ? 'bg-surface-primary' : ''}`}
-              onClick={() => setShowMobileCalendar((open) => !open)}
-              aria-label="Open calendar"
-            >
-              <CalendarIcon size={22} className="text-accent-primary" />
-              <span className="ml-2 text-text-secondary text-sm font-semibold">
-                {formatDate(selectedDate)}
-              </span>
-            </button>
-            {showMobileCalendar && (
-              <div className="mt-2 z-50" style={{ minWidth: '320px' }}>
-                <div className="bg-surface-primary rounded-xl shadow-xl p-2">
-                  <DateCalendar
-                    date={selectedDate}
-                    setDate={(d) => {
-                      setSelectedDate(d)
-                      setShowMobileCalendar(false)
-                      setMobileMenuOpen(false)
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {navItems.map((item) => {
-            const Icon = item.icon
-            const isActive = location.pathname === item.path
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 ease-out ${
-                  isActive
-                    ? 'bg-accent-primary text-text-primary'
-                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-primary'
-                }`}
-              >
-                <Icon size={20} />
-                <span className="font-medium">{item.label}</span>
-              </Link>
-            )
-          })}
-
-          {/* Logout Option (Mobile) */}
-          {user && (
-            <div className="border-t border-border pt-2 mt-2">
-              <div className="px-3 py-2 text-text-secondary text-sm">
-                Welcome, {user.username}
-              </div>
+            {/* Calendar Icon (Mobile) */}
+            <div className="relative" ref={mobileCalendarRef}>
               <button
-                onClick={() => {
-                  handleLogout()
-                  setMobileMenuOpen(false)
-                }}
-                className="flex items-center space-x-3 w-full px-3 py-2 text-text-secondary hover:text-text-primary hover:bg-surface-primary rounded-lg transition-all duration-200 ease-out"
+                className="text-text-secondary hover:text-text-primary p-2"
+                onClick={() => setShowMobileCalendar((open) => !open)}
+                aria-label="Open calendar"
+              >
+                <CalendarIcon size={20} />
+              </button>
+              {showMobileCalendar && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 md:hidden" onClick={() => setShowMobileCalendar(false)}>
+                  <div className="bg-surface-primary rounded-xl shadow-xl p-4 max-w-sm w-full mx-4" onClick={e => e.stopPropagation()}>
+                    <DateCalendar
+                      date={selectedDate}
+                      setDate={(d) => {
+                        setSelectedDate(d)
+                        setShowMobileCalendar(false)
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Logout Button (Mobile) */}
+            {user && (
+              <button
+                onClick={handleLogout}
+                className="text-text-secondary hover:text-text-primary p-2"
+                aria-label="Logout"
               >
                 <LogOut size={20} />
-                <span className="font-medium">Logout</span>
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
+
+
     </nav>
   )
 }

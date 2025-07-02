@@ -142,20 +142,7 @@ const Login = () => {
           </form>
         </div>
 
-        {/* Demo Credentials */}
-        <div className="text-center">
-          <p className="text-text-secondary text-sm mb-2">Demo Credentials:</p>
-          <div className="bg-surface-primary rounded-lg p-4 space-y-2">
-            <div className="flex justify-between text-xs">
-              <span className="text-text-secondary">Username:</span>
-              <span className="text-text-primary font-mono">Charl</span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-text-secondary">Password:</span>
-              <span className="text-text-primary font-mono">Koeberg7#</span>
-            </div>
-          </div>
-        </div>
+        
       </div>
     </div>
   )

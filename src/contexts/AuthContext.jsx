@@ -11,11 +11,12 @@ export const useAuth = () => {
   return context
 }
 
-export const AuthProvider = ({ children }) => {
+export const AuthProvider = ({ children, setSelectedDate }) => {
   const [user, setUser] = useState(null)
   const [pharmacies, setPharmacies] = useState([])
   const [selectedPharmacy, setSelectedPharmacy] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [hasSetInitialDate, setHasSetInitialDate] = useState(false)
 
   useEffect(() => {
     // Check if user is already logged in
@@ -43,6 +44,13 @@ export const AuthProvider = ({ children }) => {
       // Always set first pharmacy as default if we have pharmacies
       if (pharmacyList.length > 0) {
         setSelectedPharmacy(pharmacyList[0])
+        // Only set the initial date after login, not on pharmacy change
+        if (!hasSetInitialDate && setSelectedDate) {
+          getLatestDateWithData(pharmacyList[0]).then((date) => {
+            setSelectedDate(date)
+            setHasSetInitialDate(true)
+          })
+        }
       }
     } catch (error) {
       console.error('Error fetching pharmacies:', error)
@@ -73,6 +81,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (username, password) => {
     try {
       setLoading(true)
+      setHasSetInitialDate(false)
       const response = await authAPI.login(username, password)
       
       const userData = {
@@ -107,6 +116,7 @@ export const AuthProvider = ({ children }) => {
     setUser(null)
     setPharmacies([])
     setSelectedPharmacy(null)
+    setHasSetInitialDate(false)
   }
 
   const isAuthenticated = () => {

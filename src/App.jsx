@@ -3,13 +3,78 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Navbar from './components/Navbar'
+import BottomNavbar from './components/BottomNavbar'
 import Login from './pages/Login'
 import Daily from './pages/Daily'
 import Monthly from './pages/Monthly'
 import Yearly from './pages/Yearly'
 import Stock from './pages/Stock'
 
-function AppContent() {
+function AppContent({ selectedDate, setSelectedDate }) {
+  const { selectedPharmacy } = useAuth();
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-bg-gradient-from to-bg-gradient-to">
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/login" element={<Login />} />
+        
+        {/* Protected Routes */}
+        <Route path="/daily" element={
+          <ProtectedRoute>
+            <>
+              <Navbar selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
+              <main className="pt-16 pb-20 md:pb-0">
+                <Daily selectedDate={selectedDate} />
+              </main>
+              <BottomNavbar />
+            </>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/monthly" element={
+          <ProtectedRoute>
+            <>
+              <Navbar selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
+              <main className="pt-16 pb-20 md:pb-0">
+                <Monthly selectedDate={selectedDate} />
+              </main>
+              <BottomNavbar />
+            </>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/yearly" element={
+          <ProtectedRoute>
+            <>
+              <Navbar selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
+              <main className="pt-16 pb-20 md:pb-0">
+                <Yearly selectedDate={selectedDate} />
+              </main>
+              <BottomNavbar />
+            </>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/stock" element={
+          <ProtectedRoute>
+            <>
+              <Navbar selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
+              <main className="pt-16 pb-20 md:pb-0">
+                <Stock selectedDate={selectedDate} />
+              </main>
+              <BottomNavbar />
+            </>
+          </ProtectedRoute>
+        } />
+        {/* Redirect root to /daily */}
+        <Route path="/" element={<Navigate to="/daily" replace />} />
+      </Routes>
+    </div>
+  )
+}
+
+function App() {
   // Initialize selectedDate from localStorage if available, else use yesterday
   const getInitialDate = () => {
     const stored = localStorage.getItem('selectedDate');
@@ -29,70 +94,11 @@ function AppContent() {
       localStorage.setItem('selectedDate', date.toISOString());
     }
   };
-  const { selectedPharmacy } = useAuth();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-bg-gradient-from to-bg-gradient-to">
-      <Routes>
-        {/* Public Routes */}
-        <Route path="/login" element={<Login />} />
-        
-        {/* Protected Routes */}
-        <Route path="/daily" element={
-          <ProtectedRoute>
-            <>
-              <Navbar selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
-              <main className="pt-16">
-                <Daily selectedDate={selectedDate} />
-              </main>
-            </>
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/monthly" element={
-          <ProtectedRoute>
-            <>
-              <Navbar selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
-              <main className="pt-16">
-                <Monthly selectedDate={selectedDate} />
-              </main>
-            </>
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/yearly" element={
-          <ProtectedRoute>
-            <>
-              <Navbar selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
-              <main className="pt-16">
-                <Yearly selectedDate={selectedDate} />
-              </main>
-            </>
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/stock" element={
-          <ProtectedRoute>
-            <>
-              <Navbar selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
-              <main className="pt-16">
-                <Stock />
-              </main>
-            </>
-          </ProtectedRoute>
-        } />
-        {/* Redirect root to /daily */}
-        <Route path="/" element={<Navigate to="/daily" replace />} />
-      </Routes>
-    </div>
-  )
-}
-
-function App() {
-  return (
-    <AuthProvider>
+    <AuthProvider setSelectedDate={setSelectedDate}>
       <Router>
-        <AppContent />
+        <AppContent selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
       </Router>
     </AuthProvider>
   )

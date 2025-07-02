@@ -942,11 +942,11 @@ const Monthly = ({ selectedDate }) => {
       <div className="mb-4">
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
           <div>
-        <h1 className="text-3xl font-bold text-text-primary leading-tight mb-4">
+        <h1 className="text-3xl font-bold text-text-primary leading-tight mb-1">
               Monthly Overview
         </h1>
-        <p className="text-text-secondary text-lg">
-              Month-to-date performance metrics for {selectedPharmacy && selectedPharmacy.charAt(0).toUpperCase() + selectedPharmacy.slice(1)} Pharmacy
+        <p className="text-xs text-text-secondary mb-3">
+          {selectedDate?.toLocaleDateString('en-ZA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
         </p>
           </div>
         </div>

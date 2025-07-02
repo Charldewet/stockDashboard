@@ -5,11 +5,11 @@ const Stock = () => {
     <div className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
       {/* Page Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-text-primary leading-tight mb-4">
+        <h1 className="text-3xl font-bold text-text-primary leading-tight mb-1">
           Stock Management
         </h1>
-        <p className="text-text-secondary text-lg">
-          Inventory tracking, stock levels, and turnover analysis
+        <p className="text-xs text-text-secondary mb-3">
+          {selectedDate?.toLocaleDateString('en-ZA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
         </p>
       </div>
 
