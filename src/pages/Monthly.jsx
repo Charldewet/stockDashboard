@@ -10,6 +10,7 @@ import 'slick-carousel/slick/slick.css'
 import 'slick-carousel/slick/slick-theme.css'
 import Slider from 'react-slick'
 import './carousel-dots.css'
+import { useTheme } from '../contexts/ThemeContext'
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Title, BarElement, Filler, annotationPlugin)
 
 // SparklineChart component for quick stats
@@ -147,6 +148,7 @@ const Monthly = ({ selectedDate }) => {
     avgBasket: []
   });
   const chartRef = useRef(null);
+  const { isDarkMode } = useTheme();
 
   // Add getAlerts function inside component to access formatCurrency
   const getAlerts = (data, previousYearData, sparklineData) => {
@@ -964,7 +966,7 @@ const Monthly = ({ selectedDate }) => {
                 </p>
               </div>
               <div className="w-8 h-8 sm:w-12 sm:h-12 bg-accent-primary rounded-lg flex items-center justify-center">
-                <DollarSign className="text-surface-secondary w-4 h-4 sm:w-6 sm:h-6" />
+                <DollarSign className={isDarkMode ? 'text-surface-secondary w-4 h-4 sm:w-6 sm:h-6' : 'text-white w-4 h-4 sm:w-6 sm:h-6'} />
               </div>
             </div>
             <div className="flex items-center gap-1 sm:gap-2 mb-2">
@@ -993,16 +995,16 @@ const Monthly = ({ selectedDate }) => {
               <div className="flex flex-col gap-2">
                 <div>
                   <p className="text-text-secondary text-xs sm:text-sm font-medium">Gross Profit %</p>
-                  <p className="text-lg sm:text-2xl font-bold text-chart-gold">
+                  <span className={isDarkMode ? 'text-chart-gold text-xl sm:text-3xl font-bold' : 'text-[#B38F00] text-xl sm:text-3xl font-bold'}>
                     {Number(mtdData.grossProfitPercent).toFixed(1)}%
-                  </p>
+                  </span>
                 </div>
                 <div>
                   <p className="text-text-secondary text-xs sm:text-sm font-medium">Gross Profit: {formatCurrency(mtdData.grossProfit)}</p>
                 </div>
               </div>
               <div className="w-8 h-8 sm:w-12 sm:h-12 bg-chart-gold rounded-lg flex items-center justify-center">
-                <TrendingUp className="text-surface-secondary w-4 h-4 sm:w-6 sm:h-6" />
+                <TrendingUp className={isDarkMode ? 'text-surface-secondary w-4 h-4 sm:w-6 sm:h-6' : 'text-white w-4 h-4 sm:w-6 sm:h-6'} />
               </div>
             </div>
             {sparklineData.gpPercent && sparklineData.gpPercent.length > 0 && (
@@ -1017,19 +1019,19 @@ const Monthly = ({ selectedDate }) => {
               <div className="flex flex-col gap-2">
                 <div>
                   <p className="text-text-secondary text-xs sm:text-sm font-medium">Cost of Sales</p>
-                  <p className="text-lg sm:text-2xl font-bold text-cost-sales">
+                  <span className={isDarkMode ? 'text-cost-sales text-lg sm:text-2xl font-bold' : 'text-[#128915] text-lg sm:text-2xl font-bold'}>
                     {formatCurrency(mtdData.costOfSales)}
-                  </p>
+                  </span>
                 </div>
                 <div>
                   <p className="text-text-secondary text-xs sm:text-sm font-medium">Purchases</p>
-                  <p className="text-lg sm:text-2xl font-bold text-cost-sales">
+                  <span className={isDarkMode ? 'text-cost-sales text-lg sm:text-2xl font-bold' : 'text-[#128915] text-lg sm:text-2xl font-bold'}>
                     {formatCurrency(mtdData.purchases)}
-                  </p>
+                  </span>
                 </div>
               </div>
               <div className="w-8 h-8 sm:w-12 sm:h-12 bg-cost-sales rounded-lg flex items-center justify-center">
-                <ShoppingCart className="text-surface-secondary w-4 h-4 sm:w-6 sm:h-6" />
+                <ShoppingCart className={isDarkMode ? 'text-surface-secondary w-4 h-4 sm:w-6 sm:h-6' : 'text-white w-4 h-4 sm:w-6 sm:h-6'} />
               </div>
             </div>
           </div>
@@ -1045,7 +1047,7 @@ const Monthly = ({ selectedDate }) => {
                 </p>
               </div>
               <div className="w-8 h-8 sm:w-12 sm:h-12 bg-accent-secondary-purple rounded-lg flex items-center justify-center">
-                <ShoppingBasket className="text-surface-secondary w-4 h-4 sm:w-6 sm:h-6" />
+                <ShoppingBasket className={isDarkMode ? 'text-surface-secondary w-4 h-4 sm:w-6 sm:h-6' : 'text-white w-4 h-4 sm:w-6 sm:h-6'} />
               </div>
             </div>
             <div className="flex items-center gap-1 sm:gap-2 mb-2">
@@ -1674,10 +1676,10 @@ const Monthly = ({ selectedDate }) => {
                       label: 'Avg Basket Value',
                       data: monthlyBasket12.data,
                       type: 'line',
-                      borderColor: '#FFFFFF',
+                      borderColor: isDarkMode ? '#FFF' : '#1E293B',
                       borderWidth: 3,
                       pointRadius: 0,
-                      pointBackgroundColor: '#FFFFFF',
+                      pointBackgroundColor: isDarkMode ? '#FFF' : '#1E293B',
                       tension: 0.4,
                       yAxisID: 'y1',
                       order: 1,
