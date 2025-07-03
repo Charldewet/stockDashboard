@@ -12,7 +12,8 @@ const BottomNavbar = () => {
   ]
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface-primary border-t border-border shadow-lg">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface-primary border-t border-border shadow-lg"
+    style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <div className="flex items-center justify-around">
         {navItems.map((item) => {
           const Icon = item.icon

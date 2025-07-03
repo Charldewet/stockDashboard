@@ -1,0 +1,19 @@
+{
+  "name": "TLC Dashboard",
+  "short_name": "TLC Dashboard",
+  "description": "TLC Pharmacy Dashboard Application",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1F2937",
+  "theme_color": "#1F2937",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "lang": "en"
+} 

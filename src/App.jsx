@@ -14,7 +14,7 @@ function AppContent({ selectedDate, setSelectedDate }) {
   const { selectedPharmacy } = useAuth();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-bg-gradient-from to-bg-gradient-to">
+    <div className="min-h-screen min-h-dvh bg-gradient-to-br from-bg-gradient-from to-bg-gradient-to">
       <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />
@@ -24,7 +24,7 @@ function AppContent({ selectedDate, setSelectedDate }) {
           <ProtectedRoute>
             <>
               <Navbar selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
-              <main className="pt-16 pb-20 md:pb-0">
+              <main className="pt-16 pb-20 md:pb-0" style={{ paddingTop: 'calc(4rem + env(safe-area-inset-top))' }}>
                 <Daily selectedDate={selectedDate} />
               </main>
               <BottomNavbar />
@@ -36,7 +36,7 @@ function AppContent({ selectedDate, setSelectedDate }) {
           <ProtectedRoute>
             <>
               <Navbar selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
-              <main className="pt-16 pb-20 md:pb-0">
+              <main className="pt-16 pb-20 md:pb-0" style={{ paddingTop: 'calc(4rem + env(safe-area-inset-top))' }}>
                 <Monthly selectedDate={selectedDate} />
               </main>
               <BottomNavbar />
@@ -48,7 +48,7 @@ function AppContent({ selectedDate, setSelectedDate }) {
           <ProtectedRoute>
             <>
               <Navbar selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
-              <main className="pt-16 pb-20 md:pb-0">
+              <main className="pt-16 pb-20 md:pb-0" style={{ paddingTop: 'calc(4rem + env(safe-area-inset-top))' }}>
                 <Yearly selectedDate={selectedDate} />
               </main>
               <BottomNavbar />
@@ -60,7 +60,7 @@ function AppContent({ selectedDate, setSelectedDate }) {
           <ProtectedRoute>
             <>
               <Navbar selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
-              <main className="pt-16 pb-20 md:pb-0">
+              <main className="pt-16 pb-20 md:pb-0" style={{ paddingTop: 'calc(4rem + env(safe-area-inset-top))' }}>
                 <Stock selectedDate={selectedDate} />
               </main>
               <BottomNavbar />
