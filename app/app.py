@@ -1381,12 +1381,19 @@ app.register_blueprint(api_bp)
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve_react_app(path):
-    # Don't interfere with API routes
+    # Don't interfere with API routes - let them be handled by Flask normally
     if path.startswith('api/'):
-        return app.send_static_file('index.html')
+        # This should never be reached due to Blueprint routing, but just in case
+        from flask import abort
+        abort(404)
     
-    # Serve the React app for all other routes
-    return app.send_static_file('index.html')
+    # For all other routes (like /daily, /monthly, etc.), serve the React app
+    try:
+        return app.send_static_file('index.html')
+    except Exception as e:
+        # Fallback in case of any issues
+        print(f"Error serving React app: {e}")
+        return app.send_static_file('index.html')
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000) 
