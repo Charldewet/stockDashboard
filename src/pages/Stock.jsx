@@ -139,13 +139,27 @@ const Stock = () => {
           <div className="card">
             <h3 className="text-xl font-semibold text-text-primary mb-4">Alerts</h3>
             <div className="space-y-3">
-              <div className="flex items-center space-x-3 p-3 bg-status-warning/10 rounded-lg border border-status-warning/20">
-                <AlertTriangle size={16} className="text-status-warning" />
-                <span className="text-text-secondary text-sm">5 items low on stock</span>
+              <div className="p-2 rounded-lg bg-status-warning bg-opacity-10">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 bg-status-warning rounded-lg flex items-center justify-center">
+                    <AlertTriangle className="text-surface-secondary w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-status-warning">Low Stock Alert</h4>
+                    <p className="text-sm text-text-secondary mt-0.5">5 items low on stock</p>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center space-x-3 p-3 bg-status-error/10 rounded-lg border border-status-error/20">
-                <AlertTriangle size={16} className="text-status-error" />
-                <span className="text-text-secondary text-sm">2 items out of stock</span>
+              <div className="p-2 rounded-lg bg-status-error bg-opacity-10">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 bg-status-error rounded-lg flex items-center justify-center">
+                    <AlertTriangle className="text-surface-secondary w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-status-error">Out of Stock Alert</h4>
+                    <p className="text-sm text-text-secondary mt-0.5">2 items out of stock</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { TrendingUp, DollarSign, ShoppingCart, ShoppingBasket, Users, AlertCircle, TrendingDown } from 'lucide-react'
+import { TrendingUp, DollarSign, ShoppingCart, ShoppingBasket, Users, AlertCircle, TrendingDown, AlertTriangle, CheckCircle } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { turnoverAPI, financialAPI, salesAPI } from '../services/api'
 import { Doughnut, Line, Bar } from 'react-chartjs-2'
@@ -100,7 +100,7 @@ const getAlerts = (data, previousYearData, sparklineData) => {
     const percentDiff = ((diff / previousYearData.turnover) * 100).toFixed(1);
     alerts.push({
       severity: 'warning',
-      icon: '⚠️',
+      icon: AlertTriangle,
       title: 'YoY Turnover Down',
       description: `Down ${percentDiff}% (${formatCurrency(diff)}) vs last year`
     });
@@ -109,7 +109,7 @@ const getAlerts = (data, previousYearData, sparklineData) => {
     const percentDiff = ((diff / previousYearData.turnover) * 100).toFixed(1);
     alerts.push({
       severity: 'positive',
-      icon: '🟢',
+      icon: CheckCircle,
       title: 'Strong YoY Performance',
       description: `Up ${percentDiff}% (${formatCurrency(diff)}) vs last year`
     });
@@ -119,21 +119,21 @@ const getAlerts = (data, previousYearData, sparklineData) => {
   if (data.grossProfitPercent < 20) {
     alerts.push({
       severity: 'critical',
-      icon: '🔴',
+      icon: AlertCircle,
       title: 'Critical GP Drop',
       description: `GP at ${data.grossProfitPercent.toFixed(1)}% - Urgent attention needed`
     });
   } else if (data.grossProfitPercent < 25) {
     alerts.push({
       severity: 'warning',
-      icon: '⚠️',
+      icon: AlertTriangle,
       title: 'Low GP%',
       description: `GP at ${data.grossProfitPercent.toFixed(1)}% - Below 25% target`
     });
   } else if (data.grossProfitPercent > 30) {
     alerts.push({
       severity: 'positive',
-      icon: '🟢',
+      icon: CheckCircle,
       title: 'Great Margin',
       description: `Strong GP at ${data.grossProfitPercent.toFixed(1)}%`
     });
@@ -144,14 +144,14 @@ const getAlerts = (data, previousYearData, sparklineData) => {
   if (dispensaryPercent > 65) {
     alerts.push({
       severity: 'warning',
-      icon: '⚠️',
+      icon: AlertTriangle,
       title: 'High Dispensary %',
       description: `Dispensary at ${dispensaryPercent.toFixed(1)}% - Front shop underperforming`
     });
   } else if (dispensaryPercent < 40) {
     alerts.push({
       severity: 'warning',
-      icon: '⚠️',
+      icon: AlertTriangle,
       title: 'Low Dispensary %',
       description: `Dispensary at ${dispensaryPercent.toFixed(1)}% - Possible drop in script volumes`
     });
@@ -161,7 +161,7 @@ const getAlerts = (data, previousYearData, sparklineData) => {
   if (data.scriptsDispensed === 0) {
     alerts.push({
       severity: 'critical',
-      icon: '🔴',
+      icon: AlertCircle,
       title: 'No Scripts Recorded',
       description: 'Possible data import issue - please check'
     });
@@ -171,21 +171,21 @@ const getAlerts = (data, previousYearData, sparklineData) => {
   if (data.avgBasket < 100) {
     alerts.push({
       severity: 'critical',
-      icon: '🔴',
+      icon: AlertCircle,
       title: 'Very Poor Basket Value',
       description: `Critical: Average basket only ${formatCurrency(data.avgBasket)} - Attention needed`
     });
   } else if (data.avgBasket < 150) {
     alerts.push({
       severity: 'warning',
-      icon: '⚠️',
+      icon: AlertTriangle,
       title: 'Low Basket Value',
       description: `Average basket at ${formatCurrency(data.avgBasket)} - Below target of R150`
     });
   } else if (data.avgBasket > 200) {
     alerts.push({
       severity: 'positive',
-      icon: '🟢',
+      icon: CheckCircle,
       title: 'Strong Basket Performance',
       description: `Excellent basket value of ${formatCurrency(data.avgBasket)} - Above R200 target`
     });
@@ -198,14 +198,14 @@ const getAlerts = (data, previousYearData, sparklineData) => {
     if (purchaseRatio > 25) {
       alerts.push({
         severity: 'critical',
-        icon: '🔴',
+        icon: AlertCircle,
         title: 'High Stock Purchases',
         description: `Purchases ${purchaseRatio.toFixed(0)}% above cost of sales (${formatCurrency(data.purchases)} vs ${formatCurrency(data.costOfSales)})`
       });
     } else if (purchaseRatio > 10) {
       alerts.push({
         severity: 'warning',
-        icon: '⚠️',
+        icon: AlertTriangle,
         title: 'Elevated Stock Purchases',
         description: `Purchases ${purchaseRatio.toFixed(0)}% above cost of sales (${formatCurrency(data.purchases)} vs ${formatCurrency(data.costOfSales)})`
       });
@@ -1118,75 +1118,82 @@ const Daily = ({ selectedDate }) => {
         </div>
       </div>
 
-      {/* Key Insights Section */}
+      {/* Alerts Section */}
       <div className="mb-4">
         <div className="card">
-          <h2 className="text-xl font-semibold text-text-primary mb-3">Key Insights</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* YoY Performance */}
-            <div className="flex items-start gap-3">
-              <div className={`p-2 rounded-lg ${
-                calculatePercentageChange(todayData.turnover, previousYearData.turnover) >= 0 
-                ? 'bg-status-success bg-opacity-20' 
-                : 'bg-status-error bg-opacity-20'
-              }`}>
-                <TrendingUp className={`w-5 h-5 ${
-                  calculatePercentageChange(todayData.turnover, previousYearData.turnover) >= 0
-                  ? 'text-status-success'
-                  : 'text-status-error'
-                }`} />
-              </div>
-              <div>
-                <h3 className="text-sm font-medium text-text-primary">YoY Performance</h3>
-                <p className="text-xs text-text-secondary mt-1">
-                  {(() => {
-                    const change = calculatePercentageChange(todayData.turnover, previousYearData.turnover)
-                    const diff = todayData.turnover - previousYearData.turnover
-                    return `${change >= 0 ? 'Up' : 'Down'} ${Math.abs(change).toFixed(1)}% (${formatCurrency(Math.abs(diff))}) vs last year`
-                  })()}
-                </p>
-              </div>
-            </div>
+          <h2 className="text-xl font-semibold text-text-primary mb-4">Insights & Alerts</h2>
+          <div className="max-h-[300px] overflow-y-auto">
+            {(() => {
+              try {
+                const alerts = getAlerts(todayData, previousYearData, sparklineData);
+                
+                if (!alerts || alerts.length === 0) {
+                  return (
+                    <div className="flex items-center justify-center h-32">
+                      <p className="text-text-secondary text-sm">No alerts to display</p>
+                    </div>
+                  );
+                }
 
-            {/* GP Performance */}
-            <div className="flex items-start gap-3">
-              <div className={`p-2 rounded-lg ${
-                todayData.grossProfitPercent >= 25
-                ? 'bg-status-success bg-opacity-20'
-                : 'bg-status-warning bg-opacity-20'
-              }`}>
-                <TrendingUp className={`w-5 h-5 ${
-                  todayData.grossProfitPercent >= 25
-                  ? 'text-status-success'
-                  : 'text-status-warning'
-                }`} />
-              </div>
-              <div>
-                <h3 className="text-sm font-medium text-text-primary">Gross Profit</h3>
-                <p className="text-xs text-text-secondary mt-1">
-                  {todayData.grossProfitPercent >= 25
-                    ? `Strong GP at ${todayData.grossProfitPercent.toFixed(1)}%, above target`
-                    : `GP at ${todayData.grossProfitPercent.toFixed(1)}%, below 25% target`
-                  }
-                </p>
-              </div>
-            </div>
-
-            {/* Basket Analysis */}
-            <div className="flex items-start gap-3">
-              <div className="p-2 rounded-lg bg-accent-secondary-purple bg-opacity-20">
-                <ShoppingBasket className="w-5 h-5 text-accent-secondary-purple" />
-              </div>
-              <div>
-                <h3 className="text-sm font-medium text-text-primary">Basket Analysis</h3>
-                <p className="text-xs text-text-secondary mt-1">
-                  Average {todayData.avgBasketSize.toFixed(1)} items per basket at {formatCurrency(todayData.avgBasket)} per transaction
-                </p>
-              </div>
-            </div>
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {alerts.map((alert, index) => {
+                      const IconComponent = alert.icon;
+                      return (
+                        <div 
+                          key={index} 
+                          className={`p-3 rounded-lg ${
+                            alert.severity === 'critical' 
+                              ? 'bg-status-error bg-opacity-10' 
+                              : alert.severity === 'warning'
+                              ? 'bg-status-warning bg-opacity-10'
+                              : 'bg-status-success bg-opacity-10'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                              alert.severity === 'critical' 
+                                ? 'bg-status-error' 
+                                : alert.severity === 'warning'
+                                ? 'bg-status-warning'
+                                : 'bg-status-success'
+                            }`}>
+                              <IconComponent className="text-surface-secondary w-4 h-4" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h4 className={`text-sm font-medium ${
+                                alert.severity === 'critical' 
+                                  ? 'text-status-error' 
+                                  : alert.severity === 'warning'
+                                  ? 'text-status-warning'
+                                  : 'text-status-success'
+                              }`}>
+                                {alert.title}
+                              </h4>
+                              <p className="text-sm text-text-secondary mt-0.5 break-words">
+                                {alert.description}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              } catch (error) {
+                console.error('Error rendering alerts:', error);
+                return (
+                  <div className="flex items-center justify-center h-32">
+                    <p className="text-text-secondary text-sm">Error displaying alerts</p>
+                  </div>
+                );
+              }
+            })()}
           </div>
         </div>
       </div>
+
+
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
@@ -1424,7 +1431,7 @@ const Daily = ({ selectedDate }) => {
       </div>
 
       {/* Summary Cards Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Dispensary Summary */}
         <div className="card h-[400px]">
           <h3 className="text-xl font-semibold text-text-primary mb-4">Dispensary Summary</h3>
@@ -1609,68 +1616,6 @@ const Daily = ({ selectedDate }) => {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Alerts Card */}
-        <div className="card h-[400px]">
-          <h3 className="text-xl font-semibold text-text-primary mb-4">Alerts</h3>
-          <div className="h-[340px] overflow-y-auto">
-            {(() => {
-              try {
-                const alerts = getAlerts(todayData, previousYearData, sparklineData);
-                
-                if (!alerts || alerts.length === 0) {
-                  return (
-                    <div className="flex items-center justify-center h-full">
-                      <p className="text-text-secondary text-xs">No alerts to display</p>
-                    </div>
-                  );
-                }
-
-                return (
-                  <div className="space-y-2">
-                    {alerts.map((alert, index) => (
-                      <div 
-                        key={index} 
-                        className={`p-2 rounded-lg ${
-                          alert.severity === 'critical' 
-                            ? 'bg-status-error bg-opacity-10' 
-                            : alert.severity === 'warning'
-                            ? 'bg-status-warning bg-opacity-10'
-                            : 'bg-status-success bg-opacity-10'
-                        }`}
-                      >
-                        <div className="flex items-start gap-2">
-                          <span className="text-base leading-tight">{alert.icon}</span>
-                          <div>
-                            <h4 className={`text-sm font-medium ${
-                              alert.severity === 'critical' 
-                                ? 'text-status-error' 
-                                : alert.severity === 'warning'
-                                ? 'text-status-warning'
-                                : 'text-status-success'
-                            }`}>
-                              {alert.title}
-                            </h4>
-                            <p className="text-sm text-text-secondary mt-0.5">
-                              {alert.description}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                );
-              } catch (error) {
-                console.error('Error rendering alerts:', error);
-                return (
-                  <div className="flex items-center justify-center h-full">
-                    <p className="text-text-secondary text-sm">Error displaying alerts</p>
-                  </div>
-                );
-              }
-            })()}
           </div>
         </div>
       </div>
