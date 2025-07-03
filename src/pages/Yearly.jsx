@@ -1487,8 +1487,8 @@ const Yearly = ({ selectedDate }) => {
                       data: monthlyTurnover.data,
                       backgroundColor: '#7ED957',
                       borderRadius: 6,
-                      barThickness: 32,
-                      maxBarThickness: 40,
+                      barThickness: 20,
+                      maxBarThickness: 30,
                       yAxisID: 'y',
                       order: 2
                     },
@@ -1631,8 +1631,8 @@ const Yearly = ({ selectedDate }) => {
                       }),
                       backgroundColor: '#FF492C',
                       borderRadius: 6,
-                      barThickness: 32,
-                      maxBarThickness: 40,
+                      barThickness: 20,
+                      maxBarThickness: 30,
                       order: 1
                     }
                   ]
