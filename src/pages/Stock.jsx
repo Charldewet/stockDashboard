@@ -363,19 +363,20 @@ const Stock = ({ selectedDate }) => {
 
   const fetchMonthlyChartData = async (dateObj) => {
     try {
-      console.log('Fetching monthly chart data for:', dateObj);
-      const year = dateObj.getFullYear();
-      const month = dateObj.getMonth();
-      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      console.log('Fetching 30-day chart data for:', dateObj);
       
-      const startDate = formatDateLocal(new Date(year, month, 1));
-      const endDate = formatDateLocal(new Date(year, month, daysInMonth));
+      // Calculate the start date (30 days before the selected date)
+      const startDate = new Date(dateObj);
+      startDate.setDate(startDate.getDate() - 29); // 30 days including the selected date
       
-      console.log('Date range:', { startDate, endDate });
+      const startDateStr = formatDateLocal(startDate);
+      const endDateStr = formatDateLocal(dateObj);
+      
+      console.log('Date range:', { startDate: startDateStr, endDate: endDateStr });
       
       const [purchasesData, costOfSalesData] = await Promise.all([
-        financialAPI.getDailyPurchasesForRange(selectedPharmacy, startDate, endDate),
-        financialAPI.getDailyCostOfSalesForRange(selectedPharmacy, startDate, endDate)
+        financialAPI.getDailyPurchasesForRange(selectedPharmacy, startDateStr, endDateStr),
+        financialAPI.getDailyCostOfSalesForRange(selectedPharmacy, startDateStr, endDateStr)
       ]);
       
       console.log('API responses:', {
@@ -387,10 +388,15 @@ const Stock = ({ selectedDate }) => {
       const purchases = [];
       const costOfSales = [];
       
-      for (let day = 1; day <= daysInMonth; day++) {
-        const date = new Date(year, month, day);
+      // Generate data for each day in the 30-day range
+      for (let i = 0; i < 30; i++) {
+        const date = new Date(startDate);
+        date.setDate(date.getDate() + i);
         const dateStr = formatDateLocal(date);
-        dates.push(day);
+        
+        // Format date for display (day/month)
+        const displayDate = `${date.getDate()}/${date.getMonth() + 1}`;
+        dates.push(displayDate);
         
         const purchaseAmount = purchasesData.daily_purchases?.find(d => d.date === dateStr)?.purchases || 0;
         const cosAmount = costOfSalesData.daily_cost_of_sales?.find(d => d.date === dateStr)?.cost_of_sales || 0;
@@ -399,10 +405,10 @@ const Stock = ({ selectedDate }) => {
         costOfSales.push(cosAmount);
       }
       
-      console.log('Processed monthly data:', { dates, purchases, costOfSales });
+      console.log('Processed 30-day data:', { dates, purchases, costOfSales });
       setMonthlyData({ dates, purchases, costOfSales });
     } catch (err) {
-      console.error('Error fetching monthly chart data:', err);
+      console.error('Error fetching 30-day chart data:', err);
     }
   };
 
@@ -762,7 +768,7 @@ const Stock = ({ selectedDate }) => {
         </div>
 
         <div className="card">
-          <h2 className="text-xl font-semibold text-text-primary mb-4">Monthly Purchases vs Cost of Sales</h2>
+          <h2 className="text-xl font-semibold text-text-primary mb-4">30-Day Purchases vs Cost of Sales</h2>
           <div className="h-[200px]">
             {monthlyData.dates.length > 0 ? (
               <Line
