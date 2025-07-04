@@ -239,30 +239,32 @@ const Stock = ({ selectedDate }) => {
       });
     }
 
+    // Use the frontend-calculated days of inventory
+    const daysOfInventory = calculatedDaysOfInventory;
     const daysOfInventoryTarget = 45;
 
-    if (data.daysOfInventory < 15) {
+    if (daysOfInventory < 15) {
       alerts.push({
         title: 'Critically Low Days of Inventory',
         description: 'Days of inventory are critically low. Immediate action required to restock.',
         severity: 'critical',
         icon: AlertCircle
       });
-    } else if (data.daysOfInventory >= 15 && data.daysOfInventory < 30) {
+    } else if (daysOfInventory >= 15 && daysOfInventory < 30) {
       alerts.push({
         title: 'Good Inventory Levels',
         description: 'Good inventory levels. Maintain current stock strategy.',
         severity: 'success',
         icon: TrendingUp
       });
-    } else if (data.daysOfInventory >= 30 && data.daysOfInventory <= 45) {
+    } else if (daysOfInventory >= 30 && daysOfInventory <= 45) {
       alerts.push({
         title: 'Slightly Elevated Stock Holding',
         description: 'Slightly elevated stock holding. Monitor inventory closely.',
         severity: 'warning',
         icon: AlertTriangle
       });
-    } else if (data.daysOfInventory > 45) {
+    } else if (daysOfInventory > 45) {
       alerts.push({
         title: 'Very High Days of Inventory',
         description: 'Stock holding is very high and needs to be reduced.',
@@ -496,6 +498,11 @@ const Stock = ({ selectedDate }) => {
   if (stockValueChange > 0) { arrow = '▲'; color = 'text-status-success'; }
   else if (stockValueChange < 0) { arrow = '▼'; color = 'text-status-error'; }
 
+  // Calculate days of inventory in the frontend for display
+  const calculatedDaysOfInventory = stockData.avgDailyCostOfSales > 0
+    ? stockData.currentInventory / stockData.avgDailyCostOfSales
+    : 0;
+
   return (
     <div className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
       {/* Page Header */}
@@ -578,7 +585,7 @@ const Stock = ({ selectedDate }) => {
             <div>
                   <p className="text-text-secondary text-xs sm:text-sm font-medium">Days of Inventory</p>
                   <p className="text-lg sm:text-3xl font-bold text-cost-sales">
-                    {formatNumber(stockData.daysOfInventory)}
+                    {formatNumber(calculatedDaysOfInventory.toFixed(1))}
               </p>
             </div>
             <p className="text-text-secondary text-xs sm:text-sm">Avg Daily CoS: {formatCurrency(stockData.avgDailyCostOfSales)}</p>
