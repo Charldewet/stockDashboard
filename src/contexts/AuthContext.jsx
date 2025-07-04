@@ -39,14 +39,39 @@ export const AuthProvider = ({ children, setSelectedDate }) => {
   const fetchPharmacies = async () => {
     try {
       const pharmacyList = await authAPI.getPharmacies()
-      setPharmacies(pharmacyList)
+      
+      // Handle both formats: array of strings and array of objects with code/name
+      const formattedPharmacies = pharmacyList.map(pharmacy => {
+        if (typeof pharmacy === 'string') {
+          // Old format: array of strings
+          return {
+            code: pharmacy,
+            name: `TLC ${pharmacy.charAt(0).toUpperCase() + pharmacy.slice(1)}`
+          };
+        } else if (pharmacy && typeof pharmacy === 'object' && pharmacy.code && pharmacy.name) {
+          // New format: array of objects with code and name
+          return {
+            code: pharmacy.code,
+            name: pharmacy.name
+          };
+        } else {
+          // Fallback for unexpected format
+          console.warn('Unexpected pharmacy format:', pharmacy);
+          return {
+            code: String(pharmacy),
+            name: String(pharmacy)
+          };
+        }
+      });
+      
+      setPharmacies(formattedPharmacies)
       
       // Always set first pharmacy as default if we have pharmacies
-      if (pharmacyList.length > 0) {
-        setSelectedPharmacy(pharmacyList[0])
+      if (formattedPharmacies.length > 0) {
+        setSelectedPharmacy(formattedPharmacies[0].code)
         // Only set the initial date after login, not on pharmacy change
         if (!hasSetInitialDate && setSelectedDate) {
-          getLatestDateWithData(pharmacyList[0]).then((date) => {
+          getLatestDateWithData(formattedPharmacies[0].code).then((date) => {
             setSelectedDate(date)
             setHasSetInitialDate(true)
           })

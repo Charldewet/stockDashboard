@@ -148,25 +148,25 @@ const Navbar = ({ selectedDate, setSelectedDate }) => {
                   onClick={() => setShowPharmacyDropdown(!showPharmacyDropdown)}
                   className="flex items-center space-x-2 px-3 py-2 bg-surface-primary rounded-lg text-text-secondary hover:text-text-primary transition-all duration-200 ease-out"
                 >
-                  <span className="font-medium capitalize">{selectedPharmacy}</span>
+                  <span className="font-medium capitalize">{pharmacies.find(p => p.code === selectedPharmacy)?.name || selectedPharmacy}</span>
                   <ChevronDown size={16} className={`transition-transform duration-200 ${showPharmacyDropdown ? 'rotate-180' : ''}`} />
                 </button>
                 {showPharmacyDropdown && (
                   <div className="absolute right-0 mt-2 w-48 bg-surface-primary rounded-lg shadow-lg border border-border py-1 z-50">
                     {pharmacies.map((pharmacy) => (
                       <button
-                        key={pharmacy}
+                        key={pharmacy.code}
                         onClick={() => {
-                          setSelectedPharmacy(pharmacy)
+                          setSelectedPharmacy(pharmacy.code)
                           setShowPharmacyDropdown(false)
                         }}
                         className={`w-full text-left px-4 py-2 text-sm transition-colors duration-200 ease-out ${
-                          selectedPharmacy === pharmacy
+                          selectedPharmacy === pharmacy.code
                             ? 'bg-accent-primary text-text-primary'
                             : 'text-text-secondary hover:text-text-primary hover:bg-surface-secondary'
                         }`}
                       >
-                        <span className="capitalize">{pharmacy}</span>
+                        <span className="capitalize">{pharmacy.name}</span>
                       </button>
                     ))}
                   </div>
@@ -200,25 +200,25 @@ const Navbar = ({ selectedDate, setSelectedDate }) => {
                   onClick={() => setShowMobilePharmacyDropdown(!showMobilePharmacyDropdown)}
                   className="flex items-center space-x-1 px-2 py-1 bg-surface-primary rounded-lg text-text-secondary hover:text-text-primary transition-all duration-200 ease-out text-sm"
                 >
-                  <span className="font-medium capitalize truncate max-w-20">{selectedPharmacy}</span>
+                  <span className="font-medium capitalize truncate max-w-20">{pharmacies.find(p => p.code === selectedPharmacy)?.name || selectedPharmacy}</span>
                   <ChevronDown size={14} className={`transition-transform duration-200 ${showMobilePharmacyDropdown ? 'rotate-180' : ''}`} />
                 </button>
                 {showMobilePharmacyDropdown && (
                   <div className="absolute right-0 mt-2 w-40 bg-surface-primary rounded-lg shadow-lg border border-border py-1 z-50">
                     {pharmacies.map((pharmacy) => (
                       <button
-                        key={pharmacy}
+                        key={pharmacy.code}
                         onClick={() => {
-                          setSelectedPharmacy(pharmacy)
+                          setSelectedPharmacy(pharmacy.code)
                           setShowMobilePharmacyDropdown(false)
                         }}
                         className={`w-full text-left px-3 py-2 text-sm transition-colors duration-200 ease-out ${
-                          selectedPharmacy === pharmacy
+                          selectedPharmacy === pharmacy.code
                             ? 'bg-accent-primary text-text-primary'
                             : 'text-text-secondary hover:text-text-primary hover:bg-surface-secondary'
                         }`}
                       >
-                        <span className="capitalize">{pharmacy}</span>
+                        <span className="capitalize">{pharmacy.name}</span>
                       </button>
                     ))}
                   </div>
