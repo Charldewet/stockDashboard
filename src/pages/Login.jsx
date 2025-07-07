@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { Eye, EyeOff, Lock, User } from 'lucide-react'
@@ -9,9 +9,20 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [logoSrc, setLogoSrc] = useState('/logo/logo_dark.png');
   
   const { login } = useAuth()
   const navigate = useNavigate()
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 300px)');
+    const updateLogo = () => {
+      setLogoSrc(mq.matches ? '/logo/icon.png' : '/logo/logo_dark.png');
+    };
+    updateLogo();
+    mq.addEventListener('change', updateLogo);
+    return () => mq.removeEventListener('change', updateLogo);
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -46,7 +57,7 @@ const Login = () => {
         <div className="text-center">
           <div className="mx-auto mb-4">
             <img 
-              src="/logo/logo_dark.png" 
+              src={logoSrc} 
               alt="Logo" 
               className="h-12 w-auto mx-auto"
             />

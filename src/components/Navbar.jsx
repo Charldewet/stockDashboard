@@ -16,6 +16,7 @@ const Navbar = ({ selectedDate, setSelectedDate }) => {
   const calendarRef = useRef(null)
   const mobileCalendarRef = useRef(null)
   const mobilePharmacyRef = useRef(null)
+  const [logoSrc, setLogoSrc] = useState('/logo/logo_dark.png');
 
   useEffect(() => {
     const handleScroll = () => {
@@ -48,6 +49,16 @@ const Navbar = ({ selectedDate, setSelectedDate }) => {
   useEffect(() => {
     setShowMobileCalendar(false)
   }, [location.pathname])
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 419px)');
+    const updateLogo = () => {
+      setLogoSrc(mq.matches ? '/logo/icon.png' : '/logo/logo_dark.png');
+    };
+    updateLogo();
+    mq.addEventListener('change', updateLogo);
+    return () => mq.removeEventListener('change', updateLogo);
+  }, []);
 
   const navItems = [
     { path: '/daily', label: 'Daily', icon: CalendarIcon },
@@ -83,7 +94,7 @@ const Navbar = ({ selectedDate, setSelectedDate }) => {
           <div className="flex items-center">
             <Link to="/" className="flex items-center space-x-3">
               <img 
-                src="/logo/logo_dark.png" 
+                src={logoSrc} 
                 alt="Logo" 
                 className="h-8 w-auto"
               />
