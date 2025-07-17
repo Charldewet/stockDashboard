@@ -23,5 +23,4 @@ services:
 databases:
   - name: tlc-stock-db
     databaseName: stock_management
-    user: postgres
     plan: starter 
