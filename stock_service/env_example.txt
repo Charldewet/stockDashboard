@@ -1,0 +1,21 @@
+# Database Configuration
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=stock_management
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=password
+
+# API Configuration
+SECRET_KEY=your-secret-key-change-this-in-production
+MAIN_API_URL=https://tlcwebdashboard2.onrender.com/api
+
+# Upload Configuration
+UPLOAD_FOLDER=uploads
+
+# Stock Analysis Configuration
+LOW_STOCK_THRESHOLD_DAYS=7
+OVERSTOCK_THRESHOLD_MONTHS=6
+
+# Flask Configuration
+FLASK_ENV=development
+FLASK_DEBUG=True 

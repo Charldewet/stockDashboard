@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { TrendingUp, TrendingDown, Package, AlertTriangle, DollarSign, BarChart3, Calendar, AlertCircle } from 'lucide-react'
+import { TrendingUp, TrendingDown, Package, AlertTriangle, DollarSign, BarChart3, Calendar, AlertCircle, ShoppingCart } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { stockAPI, financialAPI } from '../services/api'
+import { stockAPI, financialAPI, dailyStockAPI } from '../services/api'
 import { formatDateLocal } from '../utils/dateUtils.js'
+import SmartAlertsPanel from '../components/SmartAlertsPanel'
 import { Line, Bar } from 'react-chartjs-2'
 import {
   Chart as ChartJS,
@@ -10,6 +11,7 @@ import {
   LinearScale,
   PointElement,
   LineElement,
+  BarElement,
   Title,
   Tooltip,
   Legend
@@ -20,6 +22,7 @@ ChartJS.register(
   LinearScale,
   PointElement,
   LineElement,
+  BarElement,
   Title,
   Tooltip,
   Legend
@@ -153,6 +156,28 @@ const Stock = ({ selectedDate }) => {
     values: [],
     dates: []
   });
+  
+  // Daily Stock Data from Second Database
+  const [dailyStockData, setDailyStockData] = useState({
+    summary: {
+      totalReceipts: 0,
+      totalIssues: 0,
+      totalAdjustments: 0,
+      netMovement: 0
+    },
+    topMovingProducts: [],
+    lowStockAlerts: [],
+    lowGPProducts: [],
+    topPerformingDepartments: [],
+    departmentsHeatmap: [],
+    movements: []
+  });
+  const [dailyStockLoading, setDailyStockLoading] = useState(false);
+  const [dailyStockError, setDailyStockError] = useState(null);
+  const [gpThreshold, setGpThreshold] = useState(20);
+  const [selectedDepartment, setSelectedDepartment] = useState(null);
+  const [departmentLowGPProducts, setDepartmentLowGPProducts] = useState([]);
+  const [departmentProductsLoading, setDepartmentProductsLoading] = useState(false);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-ZA', {
@@ -165,6 +190,47 @@ const Stock = ({ selectedDate }) => {
 
   const formatNumber = (num) => {
     return new Intl.NumberFormat('en-ZA').format(num);
+  };
+
+  // Handle department bar click
+  const handleDepartmentClick = async (event, elements) => {
+    if (elements.length > 0) {
+      const elementIndex = elements[0].index;
+      const departmentData = dailyStockData.departmentsHeatmap[elementIndex];
+      
+      console.log('🔍 Department clicked:', departmentData);
+      console.log('📊 All departments data:', dailyStockData.departmentsHeatmap);
+      
+      if (departmentData) {
+        setSelectedDepartment(departmentData);
+        setDepartmentProductsLoading(true);
+        
+        const apiParams = {
+          pharmacy: selectedPharmacy,
+          date: formatDateLocal(selectedDate),
+          departmentCode: departmentData.departmentCode,
+          threshold: 25
+        };
+        
+        console.log('🚀 Making API call with params:', apiParams);
+        
+        try {
+          const products = await dailyStockAPI.getLowGPProductsByDepartment(
+            selectedPharmacy,
+            formatDateLocal(selectedDate),
+            departmentData.departmentCode,
+            25 // Fixed threshold of 25% for this view
+          );
+          console.log('✅ API response received:', products);
+          setDepartmentLowGPProducts(products);
+        } catch (error) {
+          console.error('❌ Error fetching department products:', error);
+          setDepartmentLowGPProducts([]);
+        } finally {
+          setDepartmentProductsLoading(false);
+        }
+      }
+    }
   };
 
   const calculatePercentageChange = (current, previous) => {
@@ -456,13 +522,90 @@ const Stock = ({ selectedDate }) => {
     }
   };
 
+  const fetchDailyStockData = async (dateObj) => {
+    setDailyStockLoading(true);
+    setDailyStockError(null);
+    
+    try {
+      const date = formatDateLocal(dateObj);
+      console.log('Fetching daily stock data for:', date);
+      
+      // Fetch data from the second database in parallel
+      const [
+        summaryData,
+        topMovingData,
+        lowStockData,
+        lowGPData,
+        topDepartmentsData,
+        heatmapData,
+        movementsData
+      ] = await Promise.all([
+        dailyStockAPI.getDailyStockSummary(selectedPharmacy, date).catch(err => {
+          console.warn('Daily stock summary not available:', err.message);
+          return { totalReceipts: 0, totalIssues: 0, totalAdjustments: 0, netMovement: 0 };
+        }),
+        dailyStockAPI.getTopMovingProducts(selectedPharmacy, date, 5).catch(err => {
+          console.warn('Top moving products not available:', err.message);
+          return { products: [] };
+        }),
+        dailyStockAPI.getLowStockAlerts(selectedPharmacy, date).catch(err => {
+          console.warn('Low stock alerts not available:', err.message);
+          return { alerts: [] };
+        }),
+        dailyStockAPI.getLowGPProducts(selectedPharmacy, date, gpThreshold).catch(err => {
+          console.warn('Low GP products not available:', err.message);
+          return [];
+        }),
+        dailyStockAPI.getTopPerformingDepartments(selectedPharmacy, date, 5).catch(err => {
+          console.warn('Top performing departments not available:', err.message);
+          return { departments: [] };
+        }),
+        dailyStockAPI.getDepartmentsHeatmapData(selectedPharmacy, date).catch(err => {
+          console.warn('Departments heatmap data not available:', err.message);
+          return { departments: [] };
+        }),
+        dailyStockAPI.getDailyStockMovements(selectedPharmacy, date, date).catch(err => {
+          console.warn('Daily stock movements not available:', err.message);
+          return { movements: [] };
+        })
+      ]);
+      
+      setDailyStockData({
+        summary: summaryData,
+        topMovingProducts: topMovingData.products || [],
+        lowStockAlerts: lowStockData.alerts || [],
+        lowGPProducts: lowGPData || [],
+        topPerformingDepartments: topDepartmentsData.departments || [],
+        departmentsHeatmap: heatmapData.departments || [],
+        movements: movementsData.movements || []
+      });
+      
+      console.log('Daily stock data loaded:', {
+        summary: summaryData,
+        topMovingCount: topMovingData.products?.length || 0,
+        lowStockCount: lowStockData.alerts?.length || 0,
+        lowGPCount: lowGPData?.length || 0,
+        topDepartmentsCount: topDepartmentsData.departments?.length || 0,
+        heatmapCount: heatmapData.departments?.length || 0,
+        movementsCount: movementsData.movements?.length || 0
+      });
+      
+    } catch (err) {
+      console.error('Error fetching daily stock data:', err);
+      setDailyStockError(err.response?.data?.message || 'Failed to fetch daily stock data');
+    } finally {
+      setDailyStockLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (selectedDate && selectedPharmacy) {
       fetchStockData(selectedDate);
       fetchMonthlyChartData(selectedDate);
       fetchYearlyInventoryData(selectedDate);
+      fetchDailyStockData(selectedDate);
     }
-  }, [selectedDate, selectedPharmacy]);
+  }, [selectedDate, selectedPharmacy, gpThreshold]);
 
   if (loading) {
     return (
@@ -691,241 +834,432 @@ const Stock = ({ selectedDate }) => {
           </div>
         </div>
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+      {/* Daily Stock Information Section (from Second Database) */}
+      <div className="mb-4">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-text-primary">Daily Stock Activity</h2>
+          <p className="text-xs text-text-secondary">
+            Data from inventory management system
+          </p>
+        </div>
+        
+        {dailyStockLoading ? (
+          <div className="card">
+            <div className="flex items-center justify-center h-32">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-primary mx-auto mb-2"></div>
+                <p className="text-text-secondary text-sm">Loading daily stock data...</p>
+              </div>
+            </div>
+          </div>
+        ) : dailyStockError ? (
+          <div className="card">
+            <div className="flex items-center justify-center h-32">
+              <div className="text-center">
+                <AlertCircle className="h-8 w-8 text-status-warning mx-auto mb-2" />
+                <p className="text-status-warning text-sm mb-2">Daily stock data unavailable</p>
+                <p className="text-text-secondary text-xs">{dailyStockError}</p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+
+
+            {/* Low Stock Alerts and Top Moving Products Side by Side */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+              {/* Low Stock Alerts */}
+              <div className="card">
+                <div className="flex items-center gap-2 mb-3">
+                  <AlertTriangle className="w-4 h-4 text-status-warning" />
+                  <h3 className="text-sm font-semibold text-text-primary">Low Stock Alerts</h3>
+                  <span className="bg-status-warning bg-opacity-20 text-status-warning text-xs px-2 py-1 rounded-full">
+                    {dailyStockData.lowStockAlerts?.length || 0}
+                  </span>
+                </div>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {dailyStockData.lowStockAlerts?.length > 0 ? (
+                    dailyStockData.lowStockAlerts.map((alert, index) => (
+                      <div key={index} className="flex items-center justify-between text-xs p-2 bg-surface-tertiary rounded">
+                        <span className="font-medium truncate flex-1">{alert.productName || `Product ${index + 1}`}</span>
+                        <span className="text-status-warning font-bold ml-2">
+                          {alert.currentStock || 0} left
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-4">
+                      <p className="text-text-secondary text-xs">No low stock alerts</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Top Moving Products */}
+              <div className="card">
+                <div className="flex items-center gap-2 mb-3">
+                  <TrendingUp className="w-4 h-4 text-status-success" />
+                  <h3 className="text-sm font-semibold text-text-primary">Top Moving Products Today</h3>
+                </div>
+                <div className="space-y-2 max-h-68 overflow-y-auto">
+                  {dailyStockData.topMovingProducts?.length > 0 ? (
+                    dailyStockData.topMovingProducts.slice(0, 8).map((product, index) => (
+                      <div key={index} className="bg-surface-tertiary rounded-lg p-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <span className="text-xs font-medium text-text-secondary flex-shrink-0">#{index + 1}.</span>
+                            <span className="text-sm font-medium text-text-primary truncate">
+                              {product.productName || `Product ${index + 1}`}
+                            </span>
+                          </div>
+                          <span className="text-xs text-status-success font-bold flex-shrink-0 ml-2">
+                            {product.quantityMoved || 0} units
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-4">
+                      <p className="text-text-secondary text-xs">No top moving products</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Low GP Products and Second Card Side by Side */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+              {/* Low GP Products */}
+              <div className="card">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-status-error" />
+                    <h3 className="text-sm font-semibold text-text-primary">Low GP Products</h3>
+                    <span className="bg-status-error bg-opacity-20 text-status-error text-xs px-2 py-1 rounded-full">
+                      {dailyStockData.lowGPProducts?.length || 0}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-text-secondary">Below:</span>
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={gpThreshold}
+                        onChange={(e) => setGpThreshold(Number(e.target.value))}
+                        className="text-xs font-medium text-status-error bg-surface-tertiary border border-surface-tertiary rounded px-2 py-1 focus:outline-none focus:border-status-error cursor-pointer"
+                      >
+                        {Array.from({ length: 16 }, (_, i) => i + 15).map(value => (
+                          <option key={value} value={value}>
+                            {value}%
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-2 max-h-72 overflow-y-auto">
+                  {dailyStockData.lowGPProducts?.length > 0 ? (
+                    dailyStockData.lowGPProducts.map((product, index) => (
+                      <div key={index} className="bg-surface-tertiary rounded-lg p-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <span className="text-xs font-medium text-text-secondary flex-shrink-0">#{index + 1}.</span>
+                            <span className="text-sm font-medium text-text-primary truncate">
+                              {product.productName || `Product ${index + 1}`}
+                            </span>
+                          </div>
+                          <span className="text-xs text-status-error font-bold flex-shrink-0 ml-2">
+                            {product.grossProfitPercent?.toFixed(1)}% GP
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-4">
+                      <p className="text-text-secondary text-xs">No low GP products</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Top Performing Departments */}
+              <div className="card">
+                <div className="flex items-center gap-2 mb-3">
+                  <BarChart3 className="w-4 h-4 text-status-success" />
+                  <h3 className="text-sm font-semibold text-text-primary">Top Performing Departments</h3>
+                  <span className="bg-status-success bg-opacity-20 text-status-success text-xs px-2 py-1 rounded-full">
+                    {dailyStockData.topPerformingDepartments?.length || 0}
+                  </span>
+                </div>
+                <div className="space-y-2 max-h-72 overflow-y-auto">
+                  {dailyStockData.topPerformingDepartments?.length > 0 ? (
+                    dailyStockData.topPerformingDepartments.map((dept, index) => (
+                      <div key={index} className="bg-surface-tertiary rounded-lg p-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <span className="text-xs font-medium text-text-secondary flex-shrink-0">#{index + 1}.</span>
+                            <span className="text-sm font-medium text-text-primary truncate">
+                              {dept.departmentName || `Department ${index + 1}`}
+                            </span>
+                          </div>
+                          <div className="flex flex-col items-end text-xs">
+                            <span className="text-status-success font-bold">
+                              {formatCurrency(dept.totalTurnover)}
+                            </span>
+                            <span className="text-text-secondary">
+                              {dept.productsSold} items
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-4">
+                      <p className="text-text-secondary text-xs">No department data available</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Department Performance Chart */}
+      <div className="mb-4">
+        {/* Department GP% Bar Chart */}
         <div className="card">
-          <h2 className="text-xl font-semibold text-text-primary mb-4">12 Month Inventory Trend</h2>
-          <div className="h-[200px]">
-            {yearlyInventory.dates.length > 0 ? (
+          <div className="flex items-center gap-2 mb-4">
+            <h3 className="text-lg font-semibold text-text-primary">Top 20 Departments - GP%</h3>
+          </div>
+          {dailyStockLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-primary mx-auto mb-2"></div>
+                <p className="text-text-secondary text-sm">Loading chart data...</p>
+              </div>
+            </div>
+          ) : dailyStockData.departmentsHeatmap?.length > 0 ? (
+            <div className="h-64">
               <Bar
                 data={{
-                  labels: yearlyInventory.dates,
-                  datasets: [
-                    {
-                      label: 'Inventory Value',
-                      data: yearlyInventory.values,
-                      backgroundColor: '#FF4500',
-                      borderRadius: 6
-                    }
-                  ]
+                  labels: dailyStockData.departmentsHeatmap.slice(0, 20).map(dept => dept.departmentCode),
+                  datasets: [{
+                    label: 'GP%',
+                    data: dailyStockData.departmentsHeatmap.slice(0, 20).map(dept => {
+                      const gpPercent = dept.totalTurnover > 0 ? (dept.totalGrossProfit / dept.totalTurnover) * 100 : 0;
+                      return Math.round(gpPercent * 10) / 10; // Round to 1 decimal
+                    }),
+                    backgroundColor: dailyStockData.departmentsHeatmap.slice(0, 20).map(dept => {
+                      const gpPercent = dept.totalTurnover > 0 ? (dept.totalGrossProfit / dept.totalTurnover) * 100 : 0;
+                      if (gpPercent < 20) return '#dd524c'; // Red
+                      if (gpPercent < 26) return '#e9a23b'; // Amber
+                      if (gpPercent < 35) return '#5ec26a'; // Green
+                      return '#845eee'; // Purple
+                    }),
+                    borderColor: '#1F2937',
+                    borderWidth: 0,
+                    borderRadius: 4,
+                    borderSkipped: false
+                  }]
                 }}
                 options={{
                   responsive: true,
                   maintainAspectRatio: false,
-                  interaction: {
-                    intersect: false,
-                    mode: 'index'
+                  onClick: handleDepartmentClick,
+                  onHover: (event, activeElements) => {
+                    event.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
+                  },
+                  layout: {
+                    padding: {
+                      top: 20,
+                      bottom: 10,
+                      left: 10,
+                      right: 20
+                    }
                   },
                   plugins: {
-                    legend: {
-                      display: false
-                    },
+                    legend: { display: false },
                     tooltip: {
-                      backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                      titleColor: '#fff',
-                      bodyColor: '#fff',
+                      backgroundColor: '#1F2937',
+                      titleColor: '#F9FAFB',
+                      bodyColor: '#E5E7EB',
+                      borderColor: '#374151',
+                      borderWidth: 1,
+                      cornerRadius: 8,
                       padding: 12,
-                      displayColors: false,
+                      titleFont: {
+                        size: 14,
+                        weight: '600'
+                      },
+                      bodyFont: {
+                        size: 13
+                      },
                       callbacks: {
-                        label: function(context) {
-                          return `Inventory: ${formatCurrency(context.parsed.y)}`;
+                        title: (context) => {
+                          const index = context[0].dataIndex;
+                          return dailyStockData.departmentsHeatmap[index]?.departmentName || context[0].label;
+                        },
+                        label: (context) => {
+                          const index = context.dataIndex;
+                          const dept = dailyStockData.departmentsHeatmap[index];
+                          return [
+                            `GP%: ${context.raw}%`,
+                            `Turnover: ${formatCurrency(dept.totalTurnover)}`,
+                            `Gross Profit: ${formatCurrency(dept.totalGrossProfit)}`
+                          ];
                         }
                       }
                     }
                   },
-                  scales: {
+                                    scales: {
                     x: {
+                      ticks: { 
+                        color: '#E5E7EB',
+                        font: { 
+                          size: 12,
+                          family: 'Inter, system-ui, sans-serif',
+                          weight: '500'
+                        }
+                      },
                       grid: {
                         display: false
                       },
-                      ticks: {
-                        color: '#9CA3AF',
-                        font: {
-                          size: 11,
-                          weight: 'bold'
-                        },
-                        maxRotation: 45
+                      border: {
+                        display: false
                       }
                     },
                     y: {
+                      beginAtZero: true,
+                      max: 50,
+                      ticks: { 
+                        color: '#E5E7EB',
+                        font: { 
+                          size: 12,
+                          family: 'Inter, system-ui, sans-serif',
+                          weight: '500'
+                        },
+                        callback: (value) => `${value}%`
+                      },
                       grid: {
                         display: false
                       },
-                      ticks: {
-                        color: '#9CA3AF',
-                        callback: function(value) {
-                          if (value >= 1000000) {
-                            return `R${(value / 1000000).toFixed(1)}M`;
-                          } else if (value >= 1000) {
-                            return `R${(value / 1000).toFixed(0)}k`;
-                          }
-                          return `R${value}`;
-                        }
+                      border: {
+                        display: false
+                      },
+                      title: {
+                        display: true,
+                        text: 'Gross Profit %',
+                        color: '#E5E7EB',
+                        font: {
+                          size: 14,
+                          family: 'Inter, system-ui, sans-serif',
+                          weight: '600'
+                        },
+                        padding: 10
                       }
                     }
                   }
                 }}
               />
-            ) : (
-              <div className="h-full flex items-center justify-center">
-                <p className="text-text-secondary">Loading inventory data...</p>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-64">
+              <div className="text-center">
+                <DollarSign className="h-8 w-8 text-text-secondary mx-auto mb-2" />
+                <p className="text-text-secondary text-sm">No department data available</p>
               </div>
-            )}
-          </div>
-        </div>
-
-        <div className="card">
-          <h2 className="text-xl font-semibold text-text-primary mb-4">30-Day Purchases vs Cost of Sales</h2>
-          <div className="h-[200px]">
-            {monthlyData.dates.length > 0 ? (
-              <Line
-                data={{
-                  labels: monthlyData.dates,
-                  datasets: [
-                    {
-                      label: 'Purchases',
-                      data: monthlyData.purchases,
-                      borderColor: '#E24313',
-                      backgroundColor: function(context) {
-                        const chart = context.chart;
-                        const {ctx, chartArea} = chart;
-                        if (!chartArea) {
-                          return 'rgba(226, 67, 19, 0.1)';
-                        }
-                        const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-                        gradient.addColorStop(0, 'rgba(226, 67, 19, 0.2)');
-                        gradient.addColorStop(1, 'rgba(226, 67, 19, 0)');
-                        return gradient;
-                      },
-                      borderWidth: 3,
-                      fill: true,
-                      tension: 0.4,
-                      pointBackgroundColor: '#E24313',
-                      pointBorderColor: '#fff',
-                      pointBorderWidth: 0,
-                      pointRadius: 0,
-                      pointHoverRadius: 0
-                    },
-                    {
-                      label: 'Cost of Sales',
-                      data: monthlyData.costOfSales,
-                      borderColor: '#7ED957',
-                      backgroundColor: function(context) {
-                        const chart = context.chart;
-                        const {ctx, chartArea} = chart;
-                        if (!chartArea) {
-                          return 'rgba(126, 217, 87, 0.1)';
-                        }
-                        const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-                        gradient.addColorStop(0, 'rgba(126, 217, 87, 0.2)');
-                        gradient.addColorStop(1, 'rgba(126, 217, 87, 0)');
-                        return gradient;
-                      },
-                      borderWidth: 3,
-                      fill: true,
-                      tension: 0.4,
-                      pointBackgroundColor: '#7ED957',
-                      pointBorderColor: '#fff',
-                      pointBorderWidth: 0,
-                      pointRadius: 0,
-                      pointHoverRadius: 0
-                    }
-                  ]
-                }}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: {
-                    legend: {
-                      display: true,
-                      position: 'top',
-                      labels: {
-                        color: '#9CA3AF',
-                        usePointStyle: true,
-                        pointStyle: 'circle',
-                        padding: 5,
-                        boxWidth: 8,
-                        boxHeight: 8,
-                        useBorderRadius: true,
-                        borderRadius: 0
-                      }
-                    },
-                    tooltip: {
-                      backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                      titleColor: '#fff',
-                      bodyColor: '#fff',
-                      borderWidth: 0,
-                      displayColors: true,
-                      callbacks: {
-                        label: function(context) {
-                          const value = context.parsed.y;
-                          let valueStr = '';
-                          if (value >= 1000000) {
-                            valueStr = `R ${(value / 1000000).toFixed(2)}M`;
-                          } else if (value >= 1000) {
-                            valueStr = `R ${(value / 1000).toFixed(0)}k`;
-                          } else {
-                            valueStr = `R ${value.toLocaleString('en-ZA')}`;
-                          }
-                          return `${context.dataset.label}: ${valueStr}`;
-                        }
-                      }
-                    }
-                  },
-                  scales: {
-                    x: {
-                      grid: {
-                        display: false,
-                        color: 'rgba(156, 163, 175, 0.1)'
-                      },
-                      ticks: {
-                        color: '#9CA3AF',
-                        maxRotation: 45,
-                        font: {
-                          size: 11,
-                          weight: 'bold'
-                        },
-                        padding: 8
-                      }
-                    },
-                    y: {
-                      grid: {
-                        display: false
-                      },
-                      min: 0,
-                      ticks: {
-                        color: '#9CA3AF',
-                        callback: function(value) {
-                          if (value >= 1000000) {
-                            return `R${(value / 1000000).toFixed(1)}M`;
-                          } else if (value >= 1000) {
-                            return `R${(value / 1000).toFixed(0)}k`;
-                          }
-                          return `R${value}`;
-                        }
-                      }
-                    }
-                  },
-                  interaction: {
-                    intersect: false,
-                    mode: 'index'
-                  },
-                  elements: {
-                    point: {
-                      radius: 0,
-                      hoverRadius: 0
-                    }
-                  }
-                }}
-              />
-            ) : (
-              <div className="h-full flex items-center justify-center">
-                <p className="text-text-secondary">Loading purchase data...</p>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Department Low GP Products Section */}
+      {selectedDepartment && (
+        <div className="mb-4">
+          <div className="card">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-text-primary">
+                  Low GP Products in {selectedDepartment.departmentName}
+                </h3>
+                <span className="bg-status-error bg-opacity-20 text-status-error text-xs px-2 py-1 rounded-full">
+                  Below 25% GP
+                </span>
+              </div>
+              <button
+                onClick={() => {
+                  setSelectedDepartment(null);
+                  setDepartmentLowGPProducts([]);
+                }}
+                className="text-text-secondary hover:text-text-primary text-xs"
+              >
+                ✕ Close
+              </button>
+            </div>
+            
+            {departmentProductsLoading ? (
+              <div className="flex items-center justify-center h-32">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-primary mx-auto mb-2"></div>
+                  <p className="text-text-secondary text-sm">Loading products...</p>
+                </div>
+              </div>
+            ) : departmentLowGPProducts.length > 0 ? (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {departmentLowGPProducts.map((product, index) => (
+                  <div key={index} className="bg-surface-tertiary rounded-lg p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-medium text-text-secondary flex-shrink-0">
+                            #{index + 1}.
+                          </span>
+                          <span className="text-sm font-medium text-text-primary truncate">
+                            {product.productName}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-4 text-xs text-text-secondary">
+                          <span>Code: {product.stockCode}</span>
+                          <span>Qty Sold: {product.quantitySold}</span>
+                          <span>Sales: {formatCurrency(product.salesValue)}</span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end text-xs ml-4">
+                        <span className="text-status-error font-bold text-sm">
+                          {product.grossProfitPercent.toFixed(1)}% GP
+                        </span>
+                        <span className="text-text-secondary">
+                          {formatCurrency(product.grossProfit)} profit
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <div className="text-center">
+                  <DollarSign className="h-8 w-8 text-text-secondary mx-auto mb-2" />
+                  <p className="text-text-secondary text-sm">No products with GP below 25% found</p>
+                  <p className="text-text-secondary text-xs mt-1">
+                    All products in this department have healthy profit margins
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Smart Alerts Panel */}
+      <div className="mb-4">
+        <SmartAlertsPanel 
+          selectedDate={selectedDate} 
+          formatCurrency={formatCurrency}
+          formatDateLocal={formatDateLocal}
+        />
+      </div>
+
     </div>
   );
 };

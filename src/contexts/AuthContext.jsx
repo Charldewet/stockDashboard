@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react'
-import { authAPI, turnoverAPI } from '../services/api'
+import { authAPI, turnoverAPI, dailyStockAPI } from '../services/api'
 
 const AuthContext = createContext()
 
@@ -86,11 +86,36 @@ export const AuthProvider = ({ children, setSelectedDate }) => {
 
   const getLatestDateWithData = async (pharmacy) => {
     try {
+      // First try to get the latest date from the new stock database
+      // Check the last 7 days for daily stock data
+      const today = new Date()
+      for (let i = 0; i < 7; i++) {
+        const checkDate = new Date(today)
+        checkDate.setDate(today.getDate() - i)
+        
+        const year = checkDate.getFullYear()
+        const month = String(checkDate.getMonth() + 1).padStart(2, '0')
+        const day = String(checkDate.getDate()).padStart(2, '0')
+        const dateStr = `${year}-${month}-${day}`
+        
+        try {
+          const stockData = await dailyStockAPI.getDailyStockSummary(pharmacy, dateStr)
+          if (stockData && stockData.itemsWithSales > 0) {
+            console.log(`Found stock data for ${dateStr}`)
+            return checkDate
+          }
+        } catch (err) {
+          // Continue checking previous days
+        }
+      }
+      
+      // Fall back to old database
       const response = await turnoverAPI.getLatestDateWithData(pharmacy)
       if (response.has_data && response.latest_date) {
         return new Date(response.latest_date)
       }
-      // If no data found, return yesterday's date
+      
+      // Final fallback to yesterday's date
       const yesterday = new Date()
       yesterday.setDate(yesterday.getDate() - 1)
       return yesterday

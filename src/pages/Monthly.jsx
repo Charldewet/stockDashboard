@@ -140,6 +140,8 @@ const Monthly = ({ selectedDate }) => {
   const [dailyGPPercent30Days, setDailyGPPercent30Days] = useState({ labels: [], data: [] });
   const [dailyPurchases30Days, setDailyPurchases30Days] = useState({ labels: [], data: [] });
   const [dailyCostOfSales30Days, setDailyCostOfSales30Days] = useState({ labels: [], data: [] });
+  const [mtdPurchasesData, setMtdPurchasesData] = useState({ labels: [], data: [] });
+  const [mtdCostOfSalesData, setMtdCostOfSalesData] = useState({ labels: [], data: [] });
   const [turnover12, setTurnover12] = useState({ daily_turnover: [] });
   const [sparklineData, setSparklineData] = useState({
     turnover: [],
@@ -347,6 +349,7 @@ const Monthly = ({ selectedDate }) => {
     
     fetchAllMonthlyData(selectedDate);
     fetchSparklineData(selectedDate);
+    fetchMtdPurchasesAndCostOfSales(selectedDate);
     // Debug: Fetch and log cumulative turnover for the current month
     (async () => {
       const startOfMonth = getMonthStart(selectedDate);
@@ -783,6 +786,86 @@ const Monthly = ({ selectedDate }) => {
     }
   };
 
+  const fetchMtdPurchasesAndCostOfSales = async (dateObj) => {
+    try {
+      // Calculate MTD range (from start of month to selected date)
+      const startOfMonth = getMonthStart(dateObj);
+      const endDate = dateObj;
+      
+      const startDateStr = formatDateLocal(startOfMonth);
+      const endDateStr = formatDateLocal(endDate);
+
+      console.log('📊 Fetching MTD purchases and cost of sales data:', {
+        selectedPharmacy,
+        startDateStr,
+        endDateStr,
+        dateObj: dateObj.toISOString()
+      });
+
+      // Fetch daily purchases and cost of sales data for MTD
+      const [dailyPurchasesData, dailyCostOfSalesData] = await Promise.all([
+        financialAPI.getDailyPurchasesForRange(selectedPharmacy, startDateStr, endDateStr),
+        financialAPI.getDailyCostOfSalesForRange(selectedPharmacy, startDateStr, endDateStr)
+      ]);
+
+      // Generate date labels and data for MTD
+      const labels = [];
+      const purchasesData = [];
+      const costOfSalesData = [];
+      const currentDate = new Date(startOfMonth);
+      
+      while (currentDate <= endDate) {
+        const dateStr = formatDateLocal(currentDate);
+        const purchasesDayData = dailyPurchasesData.daily_purchases?.find(item => item.date === dateStr);
+        const costOfSalesDayData = dailyCostOfSalesData.daily_cost_of_sales?.find(item => item.date === dateStr);
+        
+        const dayPurchases = purchasesDayData?.purchases || 0;
+        const dayCostOfSales = costOfSalesDayData?.cost_of_sales || 0;
+        
+        // Only add data points for days with actual data
+        if (dayPurchases > 0 || dayCostOfSales > 0) {
+          // Format label as day/month
+          const label = `${currentDate.getDate()}/${currentDate.getMonth() + 1}`;
+          labels.push(label);
+          purchasesData.push(dayPurchases);
+          costOfSalesData.push(dayCostOfSales);
+
+          console.log(`Processing MTD data for ${dateStr}:`, {
+            purchasesDayData,
+            dayPurchases,
+            costOfSalesDayData,
+            dayCostOfSales
+          });
+        }
+        
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+
+      console.log('📈 MTD purchases and cost of sales data processed:', {
+        labels,
+        purchases: purchasesData,
+        costOfSales: costOfSalesData,
+        dataPoints: labels.length
+      });
+
+      setMtdPurchasesData({
+        labels,
+        data: purchasesData
+      });
+      setMtdCostOfSalesData({
+        labels,
+        data: costOfSalesData
+      });
+    } catch (err) {
+      console.error('❌ Error fetching MTD purchases and cost of sales data:', err);
+      console.error('Error details:', {
+        message: err.message,
+        stack: err.stack,
+        response: err.response?.data
+      });
+    }
+  };
+
   const fetchSparklineData = async (dateObj) => {
     try {
       const endDate = new Date(dateObj)
@@ -1139,17 +1222,17 @@ const Monthly = ({ selectedDate }) => {
 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         {/* Cumulative Purchases vs Cost of Sales */}
         <div className="card h-[300px]">
-          <h2 className="text-xl font-semibold text-text-primary mb-2">Purchases vs Cost of Sales</h2>
+          <h2 className="text-xl font-semibold text-text-primary mb-2">MTD Purchases vs Cost of Sales</h2>
           <div className="h-[240px] p-3" style={{position: 'relative'}}>
-              {dailyPurchases30Days.labels.length > 0 ? (
+              {mtdPurchasesData.labels.length > 0 ? (
                 <Line
-                  key={dailyPurchases30Days.labels.join(',')}
+                  key={mtdPurchasesData.labels.join(',')}
                   data={{
-                    labels: dailyPurchases30Days.labels,
+                    labels: mtdPurchasesData.labels,
                     datasets: [
                       {
                         label: 'Purchases',
-                        data: calculateCumulativeData(dailyPurchases30Days.data),
+                        data: calculateCumulativeData(mtdPurchasesData.data),
                         borderColor: '#E24313',
                         backgroundColor: 'transparent',
                         borderWidth: 3,
@@ -1163,7 +1246,7 @@ const Monthly = ({ selectedDate }) => {
                       },
                       {
                         label: 'Cost of Sales',
-                        data: calculateCumulativeData(dailyCostOfSales30Days.data),
+                        data: calculateCumulativeData(mtdCostOfSalesData.data),
                         borderColor: '#7ED957',
                         backgroundColor: 'transparent',
                         borderWidth: 3,

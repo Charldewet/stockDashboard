@@ -256,4 +256,173 @@ export const utilityAPI = {
   }
 }
 
+// Second Database API Configuration for Daily Stock Data
+// Dynamic base URL that works for both localhost and network access
+const getDailyStockApiBaseUrl = () => {
+  // In development, use the current host (works for both localhost and network access)
+  if (import.meta.env.DEV) {
+    const currentHost = window.location.hostname
+    return `http://${currentHost}:5001/api/stock`
+  }
+  // In production, you might want to use an environment variable or different logic
+  return 'http://localhost:5001/api/stock'
+}
+
+const DAILY_STOCK_API_BASE_URL = getDailyStockApiBaseUrl()
+
+// Create separate axios instance for the second database
+const dailyStockApi = axios.create({
+  baseURL: DAILY_STOCK_API_BASE_URL,
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+})
+
+// Request interceptor for second database (if auth is needed)
+dailyStockApi.interceptors.request.use(
+  (config) => {
+    // Add any specific auth headers for the second database
+    const token = localStorage.getItem('dailyStockApiToken') // or use the same token
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+    return config
+  },
+  (error) => {
+    return Promise.reject(error)
+  }
+)
+
+// Daily Stock API (from second database)
+export const dailyStockAPI = {
+  // Get daily stock movements for a date range
+  getDailyStockMovements: async (pharmacy, startDate, endDate) => {
+    const response = await dailyStockApi.get(`/movements/${pharmacy}/${startDate}/${endDate}`)
+    return response.data
+  },
+
+  // Get daily stock receipts
+  getDailyStockReceipts: async (pharmacy, startDate, endDate) => {
+    const response = await dailyStockApi.get(`/movements/${pharmacy}/${startDate}/${endDate}`)
+    return response.data
+  },
+
+  // Get daily stock issues/dispensed
+  getDailyStockIssues: async (pharmacy, startDate, endDate) => {
+    const response = await dailyStockApi.get(`/movements/${pharmacy}/${startDate}/${endDate}`)
+    return response.data
+  },
+
+  // Get daily stock adjustments with details
+  getDailyStockAdjustments: async (pharmacy, startDate, endDate) => {
+    const response = await dailyStockApi.get(`/movements/${pharmacy}/${startDate}/${endDate}`)
+    return response.data
+  },
+
+  // Get daily stock summary
+  getDailyStockSummary: async (pharmacy, date) => {
+    const response = await dailyStockApi.get(`/daily_summary/${pharmacy}/${date}`)
+    return response.data
+  },
+
+  // Get top moving products for a day
+  getTopMovingProducts: async (pharmacy, date, limit = 10) => {
+    const response = await dailyStockApi.get(`/top_moving/${pharmacy}/${date}`, {
+      params: { limit }
+    })
+    return response.data
+  },
+
+  // Get low stock alerts for a day
+  getLowStockAlerts: async (pharmacy, date) => {
+    const response = await dailyStockApi.get(`/low_stock_alerts/${pharmacy}/${date}`)
+    return response.data
+  },
+
+  // Get stock KPIs for a day
+  getStockKPIs: async (pharmacy, date) => {
+    const response = await dailyStockApi.get(`/kpis/${pharmacy}/${date}`)
+    return response.data
+  },
+
+  // Smart Alerts APIs
+  getAllSmartAlerts: async (pharmacy, date) => {
+    const response = await dailyStockApi.get(`/smart-alerts/all/${pharmacy}/${date}`)
+    return response.data
+  },
+
+  getHighVolumeLowMarginAlerts: async (pharmacy, date, limit = 10) => {
+    const response = await dailyStockApi.get(`/smart-alerts/high-volume-low-margin/${pharmacy}/${date}`, {
+      params: { limit }
+    })
+    return response.data
+  },
+
+  getDepartmentGPDeclineAlerts: async (pharmacy, date, limit = 10) => {
+    const response = await dailyStockApi.get(`/smart-alerts/department-gp-decline/${pharmacy}/${date}`, {
+      params: { limit }
+    })
+    return response.data
+  },
+
+  getOverstockWarnings: async (pharmacy, date, thresholdDays = 60, limit = 20) => {
+    const response = await dailyStockApi.get(`/smart-alerts/overstock-warnings/${pharmacy}/${date}`, {
+      params: { threshold_days: thresholdDays, limit }
+    })
+    return response.data
+  },
+
+  getSupplierPerformanceAlerts: async (pharmacy, date, limit = 10) => {
+    const response = await dailyStockApi.get(`/smart-alerts/supplier-performance/${pharmacy}/${date}`, {
+      params: { limit }
+    })
+    return response.data
+  },
+
+  getPricePointAnalysisAlerts: async (pharmacy, date, limit = 15) => {
+    const response = await dailyStockApi.get(`/smart-alerts/price-point-analysis/${pharmacy}/${date}`, {
+      params: { limit }
+    })
+    return response.data
+  },
+
+  getWeekdayPatternAlerts: async (pharmacy, date, limit = 15) => {
+    const response = await dailyStockApi.get(`/smart-alerts/weekday-patterns/${pharmacy}/${date}`, {
+      params: { limit }
+    })
+    return response.data
+  },
+
+  // Get low GP products for a day
+  getLowGPProducts: async (pharmacy, date, threshold = 20) => {
+    const response = await dailyStockApi.get(`/low_gp_products/${pharmacy}/${date}`, {
+      params: { threshold }
+    })
+    return response.data
+  },
+
+  // Get top performing departments for a day
+  getTopPerformingDepartments: async (pharmacy, date, limit = 5) => {
+    const response = await dailyStockApi.get(`/top_departments/${pharmacy}/${date}`, {
+      params: { limit }
+    })
+    return response.data
+  },
+
+  // Get departments heatmap data
+  getDepartmentsHeatmapData: async (pharmacy, date) => {
+    const response = await dailyStockApi.get(`/departments_heatmap/${pharmacy}/${date}`)
+    return response.data
+  },
+
+  // Get low GP products for a specific department
+  getLowGPProductsByDepartment: async (pharmacy, date, departmentCode, threshold = 25) => {
+    const response = await dailyStockApi.get(`/low_gp_products_by_department/${pharmacy}/${date}/${departmentCode}`, {
+      params: { threshold }
+    })
+    return response.data
+  }
+}
+
 export default api 
