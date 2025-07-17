@@ -259,12 +259,19 @@ export const utilityAPI = {
 // Second Database API Configuration for Daily Stock Data
 // Dynamic base URL that works for both localhost and network access
 const getDailyStockApiBaseUrl = () => {
-  // In development, use the current host (works for both localhost and network access)
+  const currentHost = window.location.hostname
+  
+  // Production: Use Render backend URL
+  if (currentHost.includes('onrender.com') || import.meta.env.PROD) {
+    return 'https://tlc-dashboard-backend.onrender.com/api/stock'
+  }
+  
+  // Development: Use current host (works for both localhost and network access)
   if (import.meta.env.DEV) {
-    const currentHost = window.location.hostname
     return `http://${currentHost}:5001/api/stock`
   }
-  // In production, you might want to use an environment variable or different logic
+  
+  // Fallback to localhost
   return 'http://localhost:5001/api/stock'
 }
 
