@@ -7,4 +7,5 @@ pandas==1.5.3
 python-dotenv==1.0.0
 requests==2.31.0
 Werkzeug==2.3.7
-gunicorn==21.2.0 
+gunicorn==21.2.0
+PyMuPDF==1.23.5 
