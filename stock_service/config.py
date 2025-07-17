@@ -33,8 +33,8 @@ class Config:
     CORS_ORIGINS = [
         'http://localhost:3000',  # Local development
         'http://localhost:5173',  # Vite dev server
-        'https://tlc-dashboard-frontend.onrender.com',  # Production frontend
-        # Add your actual frontend domain here
+        'https://tlc-dashboard-frontend.onrender.com',  # Production frontend (static site)
+        # Add your actual frontend domain here when deployed
     ]
     
     # File Upload Configuration

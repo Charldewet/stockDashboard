@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 
 # Production API Configuration
-PRODUCTION_API_BASE = "https://tlc-dashboard-backend.onrender.com/api/import"
+PRODUCTION_API_BASE = "https://tlc-stock-backend.onrender.com/api/import"
 
 def upload_file(endpoint, file_path, description):
     """Upload a single CSV file to the production API"""

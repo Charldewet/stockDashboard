@@ -14,15 +14,24 @@ This guide will help you deploy the TLC Dashboard to Render with:
 
 ## 1. Deploy to Render
 
-### Option A: One-Click Deployment (Recommended)
+### Option A: Separate Service Deployment (Recommended)
 
+Deploy each service independently for better separation and scalability:
+
+#### Step 1: Deploy Stock Backend
 1. **Go to Render Dashboard** → Click **"New +"** → Select **"Blueprint"**
 2. **Connect GitHub repository**: `Dashboard_rev3`
-3. **Render will automatically detect `render.yaml`** and show:
-   - ✅ Frontend: `tlc-dashboard-frontend`
-   - ✅ Backend: `tlc-dashboard-backend` 
-   - ✅ Database: `tlc-dashboard-db`
-4. **Click "Apply"** to deploy all services
+3. **Use blueprint file**: `render.yaml` (stock backend + database)
+4. **Click "Apply"** to deploy:
+   - ✅ Backend: `tlc-stock-backend`
+   - ✅ Database: `tlc-stock-db`
+
+#### Step 2: Deploy Frontend (Separate)
+1. **Click "New +"** → Select **"Static Site"**
+2. **Connect GitHub repository**: `Dashboard_rev3`
+3. **Build Command**: `npm run build`
+4. **Publish Directory**: `dist`
+5. **Name**: `tlc-dashboard-frontend`
 
 ### Option B: Manual Deployment
 
@@ -49,15 +58,15 @@ If Blueprint fails, deploy services individually:
 ## 2. Get Your URLs
 
 After deployment, you'll receive:
-- **Frontend**: `https://tlc-dashboard-frontend.onrender.com`
-- **Backend**: `https://tlc-dashboard-backend.onrender.com`
-- **Database**: Internal connection string
+- **Frontend**: `https://tlc-dashboard-frontend.onrender.com` (Static Site)
+- **Stock Backend**: `https://tlc-stock-backend.onrender.com` (Web Service)
+- **Database**: Internal connection string (Managed Database)
 
 ## 3. Upload Data to Production Database
 
 ### Method 1: Web Interface (Easiest)
 
-1. Visit: `https://tlc-dashboard-backend.onrender.com/admin`
+1. Visit: `https://tlc-stock-backend.onrender.com/admin`
 2. Upload your CSV files:
    - `Department_codes.csv`
    - `Daily_sales.csv`
@@ -77,22 +86,22 @@ The script will:
 
 ```bash
 # Upload Department Codes
-curl -X POST https://tlc-dashboard-backend.onrender.com/api/import/departments \
+curl -X POST https://tlc-stock-backend.onrender.com/api/import/departments \
   -F "file=@Department_codes.csv"
 
 # Upload Daily Sales
-curl -X POST https://tlc-dashboard-backend.onrender.com/api/import/daily-sales \
+curl -X POST https://tlc-stock-backend.onrender.com/api/import/daily-sales \
   -F "file=@Daily_sales.csv"
 
 # Upload Sales History  
-curl -X POST https://tlc-dashboard-backend.onrender.com/api/import/sales-history \
+curl -X POST https://tlc-stock-backend.onrender.com/api/import/sales-history \
   -F "file=@Sales_history.csv"
 ```
 
 ## 4. Verify Deployment
 
 ### Check API Health
-Visit: `https://tlc-dashboard-backend.onrender.com/health`
+Visit: `https://tlc-stock-backend.onrender.com/health`
 
 Should return:
 ```json

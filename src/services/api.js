@@ -261,9 +261,9 @@ export const utilityAPI = {
 const getDailyStockApiBaseUrl = () => {
   const currentHost = window.location.hostname
   
-  // Production: Use Render backend URL
+  // Production: Use separate stock backend service
   if (currentHost.includes('onrender.com') || import.meta.env.PROD) {
-    return 'https://tlc-dashboard-backend.onrender.com/api/stock'
+    return 'https://tlc-stock-backend.onrender.com/api/stock'
   }
   
   // Development: Use current host (works for both localhost and network access)
