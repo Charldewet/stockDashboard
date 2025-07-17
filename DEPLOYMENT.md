@@ -20,7 +20,7 @@ Deploy each service independently for better separation and scalability:
 
 #### Step 1: Deploy Stock Backend
 1. **Go to Render Dashboard** → Click **"New +"** → Select **"Blueprint"**
-2. **Connect GitHub repository**: `Dashboard_rev3`
+2. **Connect GitHub repository**: `stockDashboard`
 3. **Use blueprint file**: `render.yaml` (stock backend + database)
 4. **Click "Apply"** to deploy:
    - ✅ Backend: `tlc-stock-backend`
@@ -28,7 +28,7 @@ Deploy each service independently for better separation and scalability:
 
 #### Step 2: Deploy Frontend (Separate)
 1. **Click "New +"** → Select **"Static Site"**
-2. **Connect GitHub repository**: `Dashboard_rev3`
+2. **Connect GitHub repository**: `stockDashboard`
 3. **Build Command**: `npm run build`
 4. **Publish Directory**: `dist`
 5. **Name**: `tlc-dashboard-frontend`

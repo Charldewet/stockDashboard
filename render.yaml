@@ -4,7 +4,7 @@ services:
     name: tlc-stock-backend
     env: python
     plan: starter
-    repo: https://github.com/Charldewet/Dashboard_rev3.git
+    repo: https://github.com/charldewet/stockDashboard.git
     buildCommand: cd stock_service && pip install -r requirements.txt
     startCommand: cd stock_service && python app.py
     envVars:

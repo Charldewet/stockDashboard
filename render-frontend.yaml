@@ -3,7 +3,7 @@ services:
   - type: web
     name: tlc-dashboard-frontend
     env: static
-    repo: https://github.com/Charldewet/Dashboard_rev3.git
+    repo: https://github.com/charldewet/stockDashboard.git
     buildCommand: npm run build
     staticPublishPath: ./dist
     routes:
