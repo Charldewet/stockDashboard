@@ -1,5 +1,5 @@
 import pandas as pd
-import fitz  # PyMuPDF for PDF processing
+# import fitz  # PyMuPDF for PDF processing - temporarily disabled for deployment
 import re
 from models import db, Department, Product, SalesHistory, DailySales
 from datetime import datetime, date
@@ -10,70 +10,75 @@ class ImportService:
     
     @staticmethod
     def extract_sales_from_pdf(pdf_file_path):
-        """Extract sales data from PDF file using the extraction logic"""
-        try:
-            print(f"📂 Starting PDF extraction from {pdf_file_path}")
+        """Extract sales data from PDF file using the extraction logic - TEMPORARILY DISABLED"""
+        # PDF processing temporarily disabled for deployment - PyMuPDF dependency removed
+        return {
+            'error': 'PDF processing temporarily disabled. Please use CSV upload instead.',
+            'success': False
+        }
+        # try:
+        #     print(f"📂 Starting PDF extraction from {pdf_file_path}")
+        #     
+        #     # Load the PDF
+        #     doc = fitz.open(pdf_file_path)
             
-            # Load the PDF
-            doc = fitz.open(pdf_file_path)
-            
-            # Clean raw lines by removing headers, footers, and subtotal blocks
-            cleaned_lines = []
-            header_keywords = [
-                "REITZ APTEEK", "PAGE:", "CODE", "DESCRIPTION", "ON HAND", 
-                "SALES", "COST", "GROSS", "TURNOVER", "GP%", "QTY", "VALUE"
-            ]
-            exclusion_keywords = ["MAIN-DEPT", "SUB-DEPT", "TOTAL", "-------"]
-
-            for page in doc:
-                lines = page.get_text().split("\n")
-                for line in lines:
-                    if any(keyword in line for keyword in header_keywords):
-                        continue
-                    if any(keyword in line for keyword in exclusion_keywords):
-                        continue
-                    if set(line.strip()) <= {"-", " "}:
-                        continue
-                    cleaned_lines.append(line.strip())
-            
-            doc.close()
-            
-            # Define regex pattern to extract structured sales data
-            pattern = re.compile(
-                r"^([A-Z0-9]{6})\s+([A-Z0-9\-]{4,})\s+(.*?)\s+"
-                r"(-?\d+\.\d{3})\s+(-?\d+\.\d{3})\s+(-?\d+\.\d{2})\s+"
-                r"(-?\d+\.\d{2})\s+(-?\d+\.\d{2})\s+(-?\d+\.\d{3})\s+(-?\d+\.\d{3})$"
-            )
-
-            # Extract matched values
-            records = []
-            for line in cleaned_lines:
-                match = pattern.match(line)
-                if match:
-                    dept, stock_code, desc, on_hand, sales_qty, sales_val, sales_cost, gp_val, turnover_pct, gp_pct = match.groups()
-                    records.append({
-                        "DepartmentCode": dept.strip(),
-                        "StockCode": stock_code.strip(),
-                        "Description": desc.strip(),
-                        "OnHand": float(on_hand),
-                        "SalesQty": float(sales_qty),
-                        "SalesValue": float(sales_val),
-                        "SalesCost": float(sales_cost),
-                        "GrossProfit": float(gp_val),
-                        "TurnoverPercent": float(turnover_pct),
-                        "GrossProfitPercent": float(gp_pct)
-                    })
-
-            # Convert to DataFrame
-            df = pd.DataFrame(records)
-            print(f"✅ Extracted {len(df)} records from PDF")
-            return df
-            
-        except Exception as e:
-            error_msg = f"❌ Error extracting PDF: {str(e)}"
-            print(error_msg)
-            print(traceback.format_exc())
-            raise Exception(error_msg)
+        #     # Clean raw lines by removing headers, footers, and subtotal blocks
+        #     cleaned_lines = []
+        #     header_keywords = [
+        #         "REITZ APTEEK", "PAGE:", "CODE", "DESCRIPTION", "ON HAND", 
+        #         "SALES", "COST", "GROSS", "TURNOVER", "GP%", "QTY", "VALUE"
+        #     ]
+        #     exclusion_keywords = ["MAIN-DEPT", "SUB-DEPT", "TOTAL", "-------"]
+        #
+        #     for page in doc:
+        #         lines = page.get_text().split("\n")
+        #         for line in lines:
+        #             if any(keyword in line for keyword in header_keywords):
+        #                 continue
+        #             if any(keyword in line for keyword in exclusion_keywords):
+        #                 continue
+        #             if set(line.strip()) <= {"-", " "}:
+        #                 continue
+        #             cleaned_lines.append(line.strip())
+        #     
+        #     doc.close()
+        #     
+        #     # Define regex pattern to extract structured sales data
+        #     pattern = re.compile(
+        #         r"^([A-Z0-9]{6})\s+([A-Z0-9\-]{4,})\s+(.*?)\s+"
+        #         r"(-?\d+\.\d{3})\s+(-?\d+\.\d{3})\s+(-?\d+\.\d{2})\s+"
+        #         r"(-?\d+\.\d{2})\s+(-?\d+\.\d{2})\s+(-?\d+\.\d{3})\s+(-?\d+\.\d{3})$"
+        #     )
+        #
+        #     # Extract matched values
+        #     records = []
+        #     for line in cleaned_lines:
+        #         match = pattern.match(line)
+        #         if match:
+        #             dept, stock_code, desc, on_hand, sales_qty, sales_val, sales_cost, gp_val, turnover_pct, gp_pct = match.groups()
+        #             records.append({
+        #                 "DepartmentCode": dept.strip(),
+        #                 "StockCode": stock_code.strip(),
+        #                 "Description": desc.strip(),
+        #                 "OnHand": float(on_hand),
+        #                 "SalesQty": float(sales_qty),
+        #                 "SalesValue": float(sales_val),
+        #                 "SalesCost": float(sales_cost),
+        #                 "GrossProfit": float(gp_val),
+        #                 "TurnoverPercent": float(turnover_pct),
+        #                 "GrossProfitPercent": float(gp_pct)
+        #             })
+        #
+        #     # Convert to DataFrame
+        #     df = pd.DataFrame(records)
+        #     print(f"✅ Extracted {len(df)} records from PDF")
+        #     return df
+        #     
+        # except Exception as e:
+        #     error_msg = f"❌ Error extracting PDF: {str(e)}"
+        #     print(error_msg)
+        #     print(traceback.format_exc())
+        #     raise Exception(error_msg)
     
     @staticmethod
     def import_departments(csv_file_path, pharmacy_id='REITZ'):
