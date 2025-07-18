@@ -9,9 +9,9 @@ class Config:
         # Production: Use DATABASE_URL from Render
         # Handle both postgres:// and postgresql:// schemes
         if DATABASE_URL.startswith('postgres://'):
-            DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql+psycopg://', 1)
+            DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql+pg8000://', 1)
         elif DATABASE_URL.startswith('postgresql://'):
-            DATABASE_URL = DATABASE_URL.replace('postgresql://', 'postgresql+psycopg://', 1)
+            DATABASE_URL = DATABASE_URL.replace('postgresql://', 'postgresql+pg8000://', 1)
         SQLALCHEMY_DATABASE_URI = DATABASE_URL
     else:
         # Development: Use local PostgreSQL
