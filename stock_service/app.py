@@ -34,6 +34,12 @@ def create_app():
     app.register_blueprint(import_bp, url_prefix='/api/import')
     app.register_blueprint(smart_alerts_bp, url_prefix='/api/smart-alerts')
     
+    # Admin interface route
+    @app.route('/admin')
+    def admin_interface():
+        """Serve the admin interface"""
+        return render_template('admin.html')
+    
     # Health check endpoint (for Render)
     @app.route('/health')
     @app.route('/healthz')
@@ -52,11 +58,6 @@ def create_app():
             'timestamp': datetime.utcnow().isoformat()
         })
     
-    # Admin interface
-    @app.route('/admin')
-    def admin_interface():
-        return render_template('admin.html')
-    
     # API info endpoint
     @app.route('/api/info')
     def api_info():
@@ -67,8 +68,7 @@ def create_app():
                 'stock': '/api/stock',
                 'import': '/api/import', 
                 'smart_alerts': '/api/smart-alerts',
-                'health': '/health',
-                'admin': '/admin'
+                'health': '/health'
             },
             'documentation': 'Available endpoints for stock management and analytics'
         })
