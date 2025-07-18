@@ -3,8 +3,9 @@ Flask-CORS==4.0.0
 psycopg2-binary==2.9.7
 SQLAlchemy==2.0.21
 Flask-SQLAlchemy==3.0.5
+pandas==1.5.3
 python-dotenv==1.0.0
 requests==2.31.0
 Werkzeug==2.3.7
 gunicorn==21.2.0
-# PyMuPDF and pandas moved to optional requirements for faster deployment 
+PyMuPDF==1.23.5 

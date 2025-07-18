@@ -1,5 +1,3 @@
-import pandas as pd
-import fitz  # PyMuPDF for PDF processing - RE-ENABLED
 import re
 from models import db, Department, Product, SalesHistory, DailySales
 from datetime import datetime, date
@@ -7,11 +5,35 @@ import os
 import traceback
 from sqlalchemy import text
 
+# Optional imports for enhanced functionality
+try:
+    import pandas as pd
+    PANDAS_AVAILABLE = True
+except ImportError:
+    PANDAS_AVAILABLE = False
+    print("⚠️ pandas not available - using simple CSV parser")
+
+try:
+    import fitz  # PyMuPDF for PDF processing
+    PYMUPDF_AVAILABLE = True
+except ImportError:
+    PYMUPDF_AVAILABLE = False
+    print("⚠️ PyMuPDF not available - PDF processing disabled")
+
+# Import simple CSV parser as fallback
+from .csv_parser import SimpleCSVParser
+
 class ImportService:
     
     @staticmethod
     def extract_sales_from_pdf(pdf_file_path):
         """Extract sales data from PDF file using the extraction logic - RE-ENABLED"""
+        if not PYMUPDF_AVAILABLE:
+            return {
+                'error': 'PDF processing not available. PyMuPDF not installed.',
+                'success': False
+            }
+        
         try:
             print(f"📂 Starting PDF extraction from {pdf_file_path}")
             
@@ -83,24 +105,30 @@ class ImportService:
             print(f"📂 Starting department import from {csv_file_path}")
             
             # Read CSV file
-            df = pd.read_csv(csv_file_path)
-            print(f"📊 Found {len(df)} rows in department CSV")
+            if PANDAS_AVAILABLE:
+                df = pd.read_csv(csv_file_path)
+                data = df.to_dict('records')
+            else:
+                data = SimpleCSVParser.read_csv(csv_file_path)
+            print(f"📊 Found {len(data)} rows in department CSV")
             
             # Filter out invalid department codes (skip header-like rows)
-            # Accept both 6-digit codes and alphanumeric codes like BAAA01
-            valid_departments = df[
-                (
-                    (df['DepartmentCode'].str.len() == 6) & 
-                    (df['DepartmentCode'].str.isdigit() | df['DepartmentCode'].str.match(r'^[A-Z0-9]{6}$'))
-                ) &
-                (df['DepartmentName'].notna()) &
-                (~df['DepartmentName'].isin(['CODE', 'APTEEK', 'DEPT', 'MARKUP', 'ALLOC']))
-            ]
+            valid_departments = []
+            for row in data:
+                dept_code = str(row.get('DepartmentCode', '')).strip()
+                dept_name = str(row.get('DepartmentName', '')).strip()
+                
+                # Skip invalid rows
+                if (len(dept_code) == 6 and 
+                    (dept_code.isdigit() or bool(re.match(r'^[A-Z0-9]{6}$', dept_code))) and
+                    dept_name and
+                    dept_name not in ['CODE', 'APTEEK', 'DEPT', 'MARKUP', 'ALLOC']):
+                    valid_departments.append(row)
             
             print(f"✅ Found {len(valid_departments)} valid departments")
             
             # OPTIMIZATION: Get all existing departments in one query
-            dept_codes = valid_departments['DepartmentCode'].str.strip().tolist()
+            dept_codes = [row['DepartmentCode'].strip() for row in valid_departments]
             existing_departments = {
                 dept.department_code: dept 
                 for dept in Department.query.filter(Department.department_code.in_(dept_codes)).all()
@@ -109,7 +137,7 @@ class ImportService:
             departments_to_create = []
             departments_to_update = []
             
-            for _, row in valid_departments.iterrows():
+            for row in valid_departments:
                 dept_code = str(row['DepartmentCode']).strip()
                 dept_name = str(row['DepartmentName']).strip()
                 
@@ -156,6 +184,12 @@ class ImportService:
     @staticmethod
     def import_sales_history(csv_file_path, pharmacy_id='REITZ'):
         """Import sales history from CSV file (only items with movement > 0) - OPTIMIZED"""
+        if not PANDAS_AVAILABLE:
+            return {
+                'success': False,
+                'error': 'CSV processing not available. pandas not installed.'
+            }
+        
         try:
             print(f"📂 Starting sales history import from {csv_file_path}")
             
@@ -281,6 +315,12 @@ class ImportService:
     @staticmethod
     def import_daily_sales(file_path, sale_date=None, pharmacy_id='REITZ'):
         """Import daily sales from CSV or PDF file - OPTIMIZED with batch processing"""
+        if not PANDAS_AVAILABLE:
+            return {
+                'success': False,
+                'error': 'CSV processing not available. pandas not installed.'
+            }
+        
         try:
             print(f"📂 Starting daily sales import from {file_path}")
             
@@ -294,7 +334,10 @@ class ImportService:
             
             if file_extension == '.pdf':
                 # Extract data from PDF
-                df = ImportService.extract_sales_from_pdf(file_path)
+                result = ImportService.extract_sales_from_pdf(file_path)
+                if not result.get('success', False):
+                    return result
+                df = result
                 print(f"📊 Extracted {len(df)} rows from PDF")
             elif file_extension == '.csv':
                 # Read CSV file
