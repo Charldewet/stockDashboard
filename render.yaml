@@ -5,8 +5,9 @@ services:
     env: python
     plan: starter
     repo: https://github.com/charldewet/stockDashboard.git
-    buildCommand: cd stock_service && pip install -r requirements.txt
-    startCommand: cd stock_service && python app.py
+    rootDir: stock_service
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
     envVars:
       - key: FLASK_ENV
         value: production
@@ -16,8 +17,11 @@ services:
         fromDatabase:
           name: tlc-stock-db
           property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
       - key: PORT
         value: 10000
+    healthCheckPath: /healthz
 
 # Database for Stock Analytics
 databases:

@@ -3,6 +3,7 @@ from flask_cors import CORS
 from config import Config
 from models import db
 from database import init_database
+from datetime import datetime
 import os
 
 # Import route blueprints
@@ -23,7 +24,7 @@ def create_app():
     # Initialize database tables
     with app.app_context():
         try:
-            init_database()
+            init_database(app)
             print("✅ Database tables created successfully!")
         except Exception as e:
             print(f"❌ Database initialization error: {e}")
@@ -33,13 +34,22 @@ def create_app():
     app.register_blueprint(import_bp, url_prefix='/api/import')
     app.register_blueprint(smart_alerts_bp, url_prefix='/api/smart-alerts')
     
-    # Health check endpoint
+    # Health check endpoint (for Render)
     @app.route('/health')
+    @app.route('/healthz')
     def health_check():
+        try:
+            # Test database connection
+            db.session.execute(db.text('SELECT 1'))
+            db_status = 'connected'
+        except Exception as e:
+            db_status = f'disconnected: {str(e)}'
+        
         return jsonify({
             'status': 'healthy',
             'environment': app.config.get('FLASK_ENV', 'development'),
-            'database': 'connected' if db.engine else 'disconnected'
+            'database': db_status,
+            'timestamp': datetime.utcnow().isoformat()
         })
     
     # API info endpoint
