@@ -32,7 +32,7 @@ def create_app():
     # Register blueprints
     app.register_blueprint(stock_bp, url_prefix='/api/stock')
     app.register_blueprint(import_bp, url_prefix='/api/import')
-    app.register_blueprint(smart_alerts_bp, url_prefix='/api/smart-alerts')
+    app.register_blueprint(smart_alerts_bp, url_prefix='/api/stock/smart-alerts')
     
     # Admin interface route
     @app.route('/admin')
@@ -46,7 +46,7 @@ def create_app():
     def health_check():
         try:
             # Test database connection
-            db.session.execute('SELECT 1')
+            db.session.execute(db.text('SELECT 1'))
             db_status = 'connected'
         except Exception as e:
             db_status = f'disconnected: {str(e)}'
@@ -86,13 +86,13 @@ if __name__ == '__main__':
     try:
         # Test database connection
         with app.app_context():
-            db.engine.connect()
+            db.session.execute(db.text('SELECT 1'))
             print("✅ Database connection successful!")
     except Exception as e:
         print(f"❌ Database connection failed: {e}")
     
     # Get port from environment variable (Render sets this)
-    port = int(os.environ.get('PORT', 5002))
+    port = int(os.environ.get('PORT', 5001))
     
     app.run(
         host='0.0.0.0',  # Important for Render deployment

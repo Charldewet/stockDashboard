@@ -169,7 +169,7 @@
         // Check service status
         async function checkStatus() {
             try {
-                const response = await fetch('/api/stock/import/status');
+                const response = await fetch('/api/import/status');
                 const data = await response.json();
                 
                 const statusDiv = document.getElementById('status-info');
@@ -231,7 +231,7 @@
             resultDiv.innerHTML = '<p class="text-sm text-blue-600">⏳ Processing...</p>';
 
             try {
-                const response = await fetch(`/api/stock/import/${endpoint}`, {
+                const response = await fetch(`/api/import/${endpoint}`, {
                     method: 'POST',
                     body: formData
                 });

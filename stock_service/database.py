@@ -39,7 +39,7 @@ def check_database_connection(app):
     try:
         with app.app_context():
             # Try to execute a simple query
-            db.session.execute('SELECT 1')
+            db.session.execute(db.text('SELECT 1'))
             return True
     except Exception as e:
         print(f"❌ Database connection failed: {e}")
