@@ -127,38 +127,34 @@ class ImportService:
             
             print(f"✅ Found {len(valid_departments)} valid departments")
             
-            # OPTIMIZATION: Get all existing departments in one query
-            dept_codes = [row['DepartmentCode'].strip() for row in valid_departments]
-            existing_departments = {
-                dept.department_code: dept 
-                for dept in Department.query.filter(Department.department_code.in_(dept_codes)).all()
-            }
-            
-            departments_to_create = []
-            departments_to_update = []
+            # Prepare all departments for upsert operation
+            departments_to_upsert = []
             
             for row in valid_departments:
                 dept_code = str(row['DepartmentCode']).strip()
                 dept_name = str(row['DepartmentName']).strip()
                 
-                if dept_code in existing_departments:
-                    # Update existing department
-                    existing_departments[dept_code].department_name = dept_name
-                    departments_to_update.append(existing_departments[dept_code])
-                else:
-                    # Prepare new department for batch insert
-                    departments_to_create.append({
-                        'department_code': dept_code,
-                        'department_name': dept_name
-                    })
+                departments_to_upsert.append({
+                    'department_code': dept_code,
+                    'department_name': dept_name
+                })
             
-            # OPTIMIZATION: Bulk insert new departments
-            if departments_to_create:
-                db.session.execute(
-                    text("INSERT INTO departments (department_code, department_name) VALUES " +
-                         ", ".join([f"('{dept['department_code']}', '{dept['department_name']}')" 
-                                   for dept in departments_to_create]))
-                )
+            # OPTIMIZATION: Bulk upsert all departments with conflict handling
+            if departments_to_upsert:
+                # Use PostgreSQL's ON CONFLICT for upsert operation
+                values_list = []
+                for dept in departments_to_upsert:
+                    dept_code = dept['department_code'].replace("'", "''")  # Escape single quotes
+                    dept_name = dept['department_name'].replace("'", "''")  # Escape single quotes
+                    values_list.append(f"('{dept_code}', '{dept_name}')")
+                
+                insert_sql = f"""
+                    INSERT INTO departments (department_code, department_name) 
+                    VALUES {', '.join(values_list)}
+                    ON CONFLICT (department_code) 
+                    DO UPDATE SET department_name = EXCLUDED.department_name
+                """
+                db.session.execute(text(insert_sql))
             
             # Commit all changes at once
             db.session.commit()
@@ -166,9 +162,8 @@ class ImportService:
             result = {
                 'success': True,
                 'message': f'Departments imported successfully',
-                'imported': len(departments_to_create),
-                'updated': len(departments_to_update),
-                'total': len(departments_to_create) + len(departments_to_update)
+                'total_processed': len(departments_to_upsert),
+                'details': f'Processed {len(departments_to_upsert)} departments (inserted new or updated existing)'
             }
             
             print(f"✅ Department import completed: {result}")
