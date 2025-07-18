@@ -3,7 +3,7 @@ import os
 
 def init_database(app):
     """Initialize database with the Flask app"""
-    db.init_app(app)
+    # Don't call db.init_app(app) here since it's already called in create_app()
     
     with app.app_context():
         # Create all tables
@@ -39,7 +39,7 @@ def check_database_connection(app):
     try:
         with app.app_context():
             # Try to execute a simple query
-            db.session.execute(db.text('SELECT 1'))
+            db.session.execute('SELECT 1')
             return True
     except Exception as e:
         print(f"❌ Database connection failed: {e}")

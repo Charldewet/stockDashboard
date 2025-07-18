@@ -40,7 +40,7 @@ def create_app():
     def health_check():
         try:
             # Test database connection
-            db.session.execute(db.text('SELECT 1'))
+            db.session.execute('SELECT 1')
             db_status = 'connected'
         except Exception as e:
             db_status = f'disconnected: {str(e)}'
@@ -86,7 +86,7 @@ if __name__ == '__main__':
         print(f"❌ Database connection failed: {e}")
     
     # Get port from environment variable (Render sets this)
-    port = int(os.environ.get('PORT', 5001))
+    port = int(os.environ.get('PORT', 5002))
     
     app.run(
         host='0.0.0.0',  # Important for Render deployment
