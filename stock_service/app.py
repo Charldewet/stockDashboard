@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from config import Config
 from models import db
@@ -52,6 +52,11 @@ def create_app():
             'timestamp': datetime.utcnow().isoformat()
         })
     
+    # Admin interface
+    @app.route('/admin')
+    def admin_interface():
+        return render_template('admin.html')
+    
     # API info endpoint
     @app.route('/api/info')
     def api_info():
@@ -62,7 +67,8 @@ def create_app():
                 'stock': '/api/stock',
                 'import': '/api/import', 
                 'smart_alerts': '/api/smart-alerts',
-                'health': '/health'
+                'health': '/health',
+                'admin': '/admin'
             },
             'documentation': 'Available endpoints for stock management and analytics'
         })

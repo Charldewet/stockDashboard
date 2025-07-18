@@ -3,270 +3,305 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock Management Admin</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>TLC Stock Backend Admin</title>
     <style>
-        .file-upload-area {
-            border: 2px dashed #d1d5db;
-            transition: all 0.3s ease;
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
         }
-        .file-upload-area:hover {
-            border-color: #3b82f6;
-            background-color: #f8fafc;
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
-        .file-upload-area.dragover {
-            border-color: #3b82f6;
-            background-color: #eff6ff;
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .upload-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .upload-section h3 {
+            margin-top: 0;
+            color: #555;
+        }
+        input[type="file"] {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 100%;
+            max-width: 400px;
+        }
+        input[type="text"], input[type="date"] {
+            margin: 10px 0;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 200px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .stats {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .endpoint-info {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .endpoint-info h4 {
+            margin-top: 0;
+        }
+        .endpoint-info code {
+            background-color: #e9ecef;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: monospace;
         }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
-    <div class="max-w-4xl mx-auto py-8 px-4">
-        <div class="bg-white rounded-lg shadow-lg">
-            <!-- Header -->
-            <div class="border-b border-gray-200 px-6 py-4">
-                <h1 class="text-2xl font-bold text-gray-900">Stock Management Admin</h1>
-                <p class="text-gray-600 mt-1">Import and manage stock data</p>
-            </div>
+<body>
+    <div class="container">
+        <h1>🏥 TLC Stock Backend Admin</h1>
+        
+        <div class="info">
+            <strong>Status:</strong> <span id="status">Loading...</span><br>
+            <strong>Database:</strong> <span id="db-status">Checking...</span>
+        </div>
 
-            <!-- Pharmacy Selection -->
-            <div class="px-6 py-4 border-b border-gray-200 bg-blue-50">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-lg font-semibold text-gray-900">Select Pharmacy</h2>
-                </div>
-                <div class="mt-3">
-                    <label for="pharmacy-select" class="block text-sm font-medium text-gray-700 mb-2">
-                        Choose the pharmacy to upload data to:
-                    </label>
-                    <select id="pharmacy-select" class="w-full md:w-auto px-4 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                        <option value="REITZ">Reitz Pharmacy</option>
-                        <option value="ROOS">Roos Pharmacy</option>
-                        <option value="TUGELA">Tugela Pharmacy</option>
-                        <option value="VILLIERS">Villiers Pharmacy</option>
-                        <option value="WINTERTON">Winterton Pharmacy</option>
-                    </select>
-                    <p class="text-sm text-gray-500 mt-1">All imported data will be associated with the selected pharmacy.</p>
-                </div>
-            </div>
+        <div class="upload-section">
+            <h3>📁 Upload Department Codes</h3>
+            <input type="file" id="departments-file" accept=".csv">
+            <input type="text" id="departments-pharmacy" placeholder="Pharmacy ID (default: REITZ)" value="REITZ">
+            <br>
+            <button onclick="uploadDepartments()">Upload Departments</button>
+            <div id="departments-status"></div>
+        </div>
 
-            <!-- Status Section -->
-            <div class="px-6 py-4 border-b border-gray-200">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-lg font-semibold text-gray-900">Service Status</h2>
-                    <button onclick="checkStatus()" class="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">
-                        Refresh
-                    </button>
-                </div>
-                <div id="status-info" class="mt-3 p-3 bg-gray-100 rounded">
-                    <p class="text-sm text-gray-600">Loading...</p>
-                </div>
-            </div>
+        <div class="upload-section">
+            <h3>📊 Upload Sales History</h3>
+            <input type="file" id="history-file" accept=".csv">
+            <input type="text" id="history-pharmacy" placeholder="Pharmacy ID (default: REITZ)" value="REITZ">
+            <br>
+            <button onclick="uploadHistory()">Upload Sales History</button>
+            <div id="history-status"></div>
+        </div>
 
-            <!-- Import Sections -->
-            <div class="p-6 space-y-8">
-                <!-- Departments Import -->
-                <div class="border border-gray-200 rounded-lg p-4">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4">1. Import Departments</h3>
-                    <p class="text-sm text-gray-600 mb-4">Import department codes and names from CSV file. Only needs to be done once.</p>
-                    
-                    <div class="file-upload-area p-6 rounded-lg text-center">
-                        <input type="file" id="dept-file" accept=".csv" class="hidden" onchange="handleFileSelect('dept', this)">
-                        <div onclick="document.getElementById('dept-file').click()" class="cursor-pointer">
-                            <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                            </svg>
-                            <p class="mt-2 text-sm text-gray-600">
-                                <span class="font-medium text-blue-600 hover:text-blue-500">Click to upload</span> department CSV file
-                            </p>
-                        </div>
-                    </div>
-                    
-                    <div id="dept-file-info" class="mt-3 hidden">
-                        <p class="text-sm text-gray-600">Selected: <span id="dept-filename"></span></p>
-                    </div>
-                    
-                    <button onclick="importFile('departments', 'dept')" class="mt-4 w-full bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded disabled:bg-gray-300" disabled id="dept-import-btn">
-                        Import Departments
-                    </button>
-                    
-                    <div id="dept-result" class="mt-3"></div>
-                </div>
+        <div class="upload-section">
+            <h3>📈 Upload Daily Sales</h3>
+            <input type="file" id="daily-file" accept=".csv,.pdf">
+            <input type="text" id="daily-pharmacy" placeholder="Pharmacy ID (default: REITZ)" value="REITZ">
+            <input type="date" id="daily-date">
+            <br>
+            <button onclick="uploadDaily()">Upload Daily Sales</button>
+            <div id="daily-status"></div>
+        </div>
 
-                <!-- Sales History Import -->
-                <div class="border border-gray-200 rounded-lg p-4">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4">2. Import Sales History</h3>
-                    <p class="text-sm text-gray-600 mb-4">Import 12-month sales history. Only items with movement will be imported.</p>
-                    
-                    <div class="file-upload-area p-6 rounded-lg text-center">
-                        <input type="file" id="history-file" accept=".csv" class="hidden" onchange="handleFileSelect('history', this)">
-                        <div onclick="document.getElementById('history-file').click()" class="cursor-pointer">
-                            <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                            </svg>
-                            <p class="mt-2 text-sm text-gray-600">
-                                <span class="font-medium text-blue-600 hover:text-blue-500">Click to upload</span> sales history CSV file
-                            </p>
-                        </div>
-                    </div>
-                    
-                    <div id="history-file-info" class="mt-3 hidden">
-                        <p class="text-sm text-gray-600">Selected: <span id="history-filename"></span></p>
-                    </div>
-                    
-                    <button onclick="importFile('history', 'history')" class="mt-4 w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded disabled:bg-gray-300" disabled id="history-import-btn">
-                        Import Sales History
-                    </button>
-                    
-                    <div id="history-result" class="mt-3"></div>
-                </div>
+        <div class="stats">
+            <h3>📊 Database Statistics</h3>
+            <button onclick="loadStats()">Refresh Stats</button>
+            <div id="stats-content"></div>
+        </div>
 
-                <!-- Daily Sales Import -->
-                <div class="border border-gray-200 rounded-lg p-4">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4">3. Import Daily Sales</h3>
-                    <p class="text-sm text-gray-600 mb-4">Import daily sales data from CSV or PDF files. This should be done every day with new data.</p>
-                    
-                    <div class="mb-4">
-                        <label for="sale-date" class="block text-sm font-medium text-gray-700 mb-2">Sale Date</label>
-                        <input type="date" id="sale-date" class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                    </div>
-                    
-                    <div class="file-upload-area p-6 rounded-lg text-center">
-                        <input type="file" id="daily-file" accept=".csv,.pdf" class="hidden" onchange="handleFileSelect('daily', this)">
-                        <div onclick="document.getElementById('daily-file').click()" class="cursor-pointer">
-                            <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                            </svg>
-                            <p class="mt-2 text-sm text-gray-600">
-                                <span class="font-medium text-blue-600 hover:text-blue-500">Click to upload</span> daily sales CSV or PDF file
-                            </p>
-                            <p class="mt-1 text-xs text-gray-500">Supports both CSV and PDF formats</p>
-                        </div>
-                    </div>
-                    
-                    <div id="daily-file-info" class="mt-3 hidden">
-                        <p class="text-sm text-gray-600">Selected: <span id="daily-filename"></span></p>
-                    </div>
-                    
-                    <button onclick="importFile('daily', 'daily')" class="mt-4 w-full bg-orange-500 hover:bg-orange-600 text-white font-medium py-2 px-4 rounded disabled:bg-gray-300" disabled id="daily-import-btn">
-                        Import Daily Sales
-                    </button>
-                    
-                    <div id="daily-result" class="mt-3"></div>
-                </div>
-            </div>
+        <div class="endpoint-info">
+            <h4>🔗 Available API Endpoints</h4>
+            <ul>
+                <li><code>GET /health</code> - Health check</li>
+                <li><code>GET /api/info</code> - API information</li>
+                <li><code>POST /api/import/departments</code> - Upload departments</li>
+                <li><code>POST /api/import/history</code> - Upload sales history</li>
+                <li><code>POST /api/import/daily</code> - Upload daily sales</li>
+                <li><code>GET /api/import/status</code> - Import status</li>
+                <li><code>GET /api/stock/*</code> - Stock management endpoints</li>
+                <li><code>GET /api/smart-alerts/*</code> - Smart alerts endpoints</li>
+            </ul>
         </div>
     </div>
 
     <script>
-        // Set today's date as default
-        document.getElementById('sale-date').value = new Date().toISOString().split('T')[0];
+        // Load initial status
+        window.onload = function() {
+            checkHealth();
+            loadStats();
+        };
 
-        // Get selected pharmacy
-        function getSelectedPharmacy() {
-            return document.getElementById('pharmacy-select').value;
-        }
-
-        // Check service status
-        async function checkStatus() {
+        async function checkHealth() {
             try {
-                const response = await fetch('/api/stock/import/status');
+                const response = await fetch('/health');
                 const data = await response.json();
-                
-                const statusDiv = document.getElementById('status-info');
-                if (data.status === 'operational') {
-                    statusDiv.innerHTML = `
-                        <div class="text-green-800">
-                            <p class="font-medium">✅ Service Operational</p>
-                            <p class="text-sm mt-1">
-                                Departments: ${data.database_stats.departments} | 
-                                Products: ${data.database_stats.products} | 
-                                Sales Records: ${data.database_stats.daily_sales_records}
-                            </p>
-                        </div>
-                    `;
-                } else {
-                    statusDiv.innerHTML = `<p class="text-red-800">❌ Service Error: ${data.error}</p>`;
-                }
+                document.getElementById('status').textContent = data.status;
+                document.getElementById('db-status').textContent = data.database;
             } catch (error) {
-                document.getElementById('status-info').innerHTML = `<p class="text-red-800">❌ Connection Error</p>`;
+                document.getElementById('status').textContent = 'Error';
+                document.getElementById('db-status').textContent = 'Connection failed';
             }
         }
 
-        // Handle file selection
-        function handleFileSelect(type, input) {
-            const file = input.files[0];
-            if (file) {
-                document.getElementById(`${type}-filename`).textContent = file.name;
-                document.getElementById(`${type}-file-info`).classList.remove('hidden');
-                document.getElementById(`${type}-import-btn`).disabled = false;
-            }
-        }
-
-        // Import file
-        async function importFile(endpoint, type) {
-            const fileInput = document.getElementById(`${type}-file`);
-            const resultDiv = document.getElementById(`${type}-result`);
-            const importBtn = document.getElementById(`${type}-import-btn`);
-            const selectedPharmacy = getSelectedPharmacy();
+        async function uploadDepartments() {
+            const fileInput = document.getElementById('departments-file');
+            const pharmacyInput = document.getElementById('departments-pharmacy');
+            const statusDiv = document.getElementById('departments-status');
             
             if (!fileInput.files[0]) {
-                alert('Please select a file first');
+                statusDiv.innerHTML = '<div class="error">Please select a file</div>';
                 return;
             }
 
             const formData = new FormData();
             formData.append('file', fileInput.files[0]);
-            formData.append('pharmacy_id', selectedPharmacy);
-            
-            if (type === 'daily') {
-                const saleDate = document.getElementById('sale-date').value;
-                if (saleDate) {
-                    formData.append('sale_date', saleDate);
-                }
-            }
-
-            // Show loading state
-            importBtn.disabled = true;
-            importBtn.textContent = 'Importing...';
-            resultDiv.innerHTML = '<p class="text-sm text-blue-600">⏳ Processing...</p>';
+            formData.append('pharmacy_id', pharmacyInput.value);
 
             try {
-                const response = await fetch(`/api/stock/import/${endpoint}`, {
+                statusDiv.innerHTML = '<div class="info">Uploading...</div>';
+                const response = await fetch('/api/import/departments', {
                     method: 'POST',
                     body: formData
                 });
-
                 const result = await response.json();
                 
                 if (response.ok) {
-                    resultDiv.innerHTML = `
-                        <div class="text-green-800 text-sm">
-                            <p class="font-medium">✅ Import Successful</p>
-                            <p class="mt-1">${result.message}</p>
-                            <p class="text-xs mt-1">Pharmacy: ${selectedPharmacy}</p>
-                        </div>
-                    `;
-                    
-                    // Reset form
-                    fileInput.value = '';
-                    document.getElementById(`${type}-file-info`).classList.add('hidden');
-                    
-                    // Refresh status after successful import
-                    setTimeout(checkStatus, 1000);
+                    statusDiv.innerHTML = `<div class="success">✅ ${result.message}</div>`;
                 } else {
-                    resultDiv.innerHTML = `<p class="text-red-800 text-sm">❌ Error: ${result.error}</p>`;
+                    statusDiv.innerHTML = `<div class="error">❌ ${result.error}</div>`;
                 }
             } catch (error) {
-                resultDiv.innerHTML = `<p class="text-red-800 text-sm">❌ Network Error: ${error.message}</p>`;
-            } finally {
-                // Reset button state
-                importBtn.disabled = false;
-                importBtn.textContent = `Import ${endpoint.charAt(0).toUpperCase() + endpoint.slice(1)}`;
+                statusDiv.innerHTML = `<div class="error">❌ Upload failed: ${error.message}</div>`;
             }
         }
 
-        // Initialize page
-        checkStatus();
+        async function uploadHistory() {
+            const fileInput = document.getElementById('history-file');
+            const pharmacyInput = document.getElementById('history-pharmacy');
+            const statusDiv = document.getElementById('history-status');
+            
+            if (!fileInput.files[0]) {
+                statusDiv.innerHTML = '<div class="error">Please select a file</div>';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('pharmacy_id', pharmacyInput.value);
+
+            try {
+                statusDiv.innerHTML = '<div class="info">Uploading...</div>';
+                const response = await fetch('/api/import/history', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                
+                if (response.ok) {
+                    statusDiv.innerHTML = `<div class="success">✅ ${result.message}</div>`;
+                } else {
+                    statusDiv.innerHTML = `<div class="error">❌ ${result.error}</div>`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="error">❌ Upload failed: ${error.message}</div>`;
+            }
+        }
+
+        async function uploadDaily() {
+            const fileInput = document.getElementById('daily-file');
+            const pharmacyInput = document.getElementById('daily-pharmacy');
+            const dateInput = document.getElementById('daily-date');
+            const statusDiv = document.getElementById('daily-status');
+            
+            if (!fileInput.files[0]) {
+                statusDiv.innerHTML = '<div class="error">Please select a file</div>';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('pharmacy_id', pharmacyInput.value);
+            if (dateInput.value) {
+                formData.append('sale_date', dateInput.value);
+            }
+
+            try {
+                statusDiv.innerHTML = '<div class="info">Uploading...</div>';
+                const response = await fetch('/api/import/daily', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                
+                if (response.ok) {
+                    statusDiv.innerHTML = `<div class="success">✅ ${result.message}</div>`;
+                } else {
+                    statusDiv.innerHTML = `<div class="error">❌ ${result.error}</div>`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="error">❌ Upload failed: ${error.message}</div>`;
+            }
+        }
+
+        async function loadStats() {
+            const statsDiv = document.getElementById('stats-content');
+            try {
+                const response = await fetch('/api/import/status');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const stats = data.database_stats;
+                    statsDiv.innerHTML = `
+                        <p><strong>Departments:</strong> ${stats.departments}</p>
+                        <p><strong>Products:</strong> ${stats.products}</p>
+                        <p><strong>Sales History Records:</strong> ${stats.sales_history_records}</p>
+                        <p><strong>Daily Sales Records:</strong> ${stats.daily_sales_records}</p>
+                    `;
+                } else {
+                    statsDiv.innerHTML = `<div class="error">Failed to load stats: ${data.error}</div>`;
+                }
+            } catch (error) {
+                statsDiv.innerHTML = `<div class="error">Failed to load stats: ${error.message}</div>`;
+            }
+        }
     </script>
 </body>
 </html> 
