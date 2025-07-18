@@ -37,9 +37,9 @@ class ImportService:
         try:
             print(f"📂 Starting PDF extraction from {pdf_file_path}")
             
-            # Load the PDF
+            # Use your exact PDF extraction code
             doc = fitz.open(pdf_file_path)
-            
+
             # Clean raw lines by removing headers, footers, and subtotal blocks
             cleaned_lines = []
             header_keywords = [
@@ -60,15 +60,15 @@ class ImportService:
                     cleaned_lines.append(line.strip())
             
             doc.close()
-            
-            # Define regex pattern to extract structured sales data
+
+            # Define regex pattern to extract structured sales data (your exact pattern)
             pattern = re.compile(
                 r"^([A-Z0-9]{6})\s+([A-Z0-9\-]{4,})\s+(.*?)\s+"
                 r"(-?\d+\.\d{3})\s+(-?\d+\.\d{3})\s+(-?\d+\.\d{2})\s+"
                 r"(-?\d+\.\d{2})\s+(-?\d+\.\d{2})\s+(-?\d+\.\d{3})\s+(-?\d+\.\d{3})$"
             )
 
-            # Extract matched values
+            # Extract matched values (your exact logic)
             records = []
             for line in cleaned_lines:
                 match = pattern.match(line)
@@ -90,6 +90,9 @@ class ImportService:
             # Convert to DataFrame
             df = pd.DataFrame(records)
             print(f"✅ Extracted {len(df)} records from PDF")
+            
+
+            
             return df
             
         except Exception as e:
@@ -329,10 +332,7 @@ class ImportService:
             
             if file_extension == '.pdf':
                 # Extract data from PDF
-                result = ImportService.extract_sales_from_pdf(file_path)
-                if not result.get('success', False):
-                    return result
-                df = result
+                df = ImportService.extract_sales_from_pdf(file_path)
                 print(f"📊 Extracted {len(df)} rows from PDF")
             elif file_extension == '.csv':
                 # Read CSV file
@@ -480,6 +480,60 @@ class ImportService:
         except Exception as e:
             db.session.rollback()
             error_msg = f"❌ Error importing daily sales: {str(e)}"
+            print(error_msg)
+            print(traceback.format_exc())
+            return {'success': False, 'error': error_msg}
+    
+    @staticmethod
+    def delete_daily_sales(sale_date, pharmacy_id='REITZ'):
+        """Delete all daily sales records for a specific date"""
+        try:
+            print(f"🗑️ Starting daily sales deletion for {sale_date}")
+            
+            # Parse date if string
+            if isinstance(sale_date, str):
+                sale_date = datetime.strptime(sale_date, '%Y-%m-%d').date()
+            
+            # Get product IDs for the pharmacy first
+            product_ids = db.session.query(Product.id).filter(
+                Product.pharmacy_id == pharmacy_id
+            ).subquery()
+            
+            # Get count of records to delete for reporting
+            records_to_delete = db.session.query(DailySales).filter(
+                DailySales.product_id.in_(db.session.query(product_ids.c.id)),
+                DailySales.sale_date == sale_date
+            ).count()
+            
+            if records_to_delete == 0:
+                return {
+                    'success': True,
+                    'message': f'No daily sales records found for {sale_date}',
+                    'deleted_count': 0,
+                    'sale_date': sale_date.isoformat()
+                }
+            
+            # Delete records using bulk delete
+            deleted_count = db.session.query(DailySales).filter(
+                DailySales.product_id.in_(db.session.query(product_ids.c.id)),
+                DailySales.sale_date == sale_date
+            ).delete(synchronize_session=False)
+            
+            db.session.commit()
+            
+            result = {
+                'success': True,
+                'message': f'Successfully deleted daily sales records for {sale_date}',
+                'deleted_count': deleted_count,
+                'sale_date': sale_date.isoformat()
+            }
+            
+            print(f"✅ Daily sales deletion completed: {result}")
+            return result
+            
+        except Exception as e:
+            db.session.rollback()
+            error_msg = f"❌ Error deleting daily sales: {str(e)}"
             print(error_msg)
             print(traceback.format_exc())
             return {'success': False, 'error': error_msg} 

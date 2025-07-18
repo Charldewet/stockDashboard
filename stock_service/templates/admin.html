@@ -153,6 +153,25 @@
                     
                     <div id="daily-result" class="mt-3"></div>
                 </div>
+
+                <!-- Delete Daily Sales -->
+                <div class="border border-red-200 rounded-lg p-4 bg-red-50">
+                    <h3 class="text-lg font-semibold text-red-900 mb-4">🗑️ Delete Daily Sales</h3>
+                    <p class="text-sm text-red-700 mb-4">
+                        <strong>Warning:</strong> This will permanently delete all daily sales records for the selected date. This action cannot be undone.
+                    </p>
+                    
+                    <div class="mb-4">
+                        <label for="delete-date" class="block text-sm font-medium text-red-700 mb-2">Select Date to Delete</label>
+                        <input type="date" id="delete-date" class="border border-red-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500" />
+                    </div>
+                    
+                    <button onclick="deleteDailySales()" class="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded disabled:bg-gray-300" id="delete-btn">
+                        Delete Daily Sales for Selected Date
+                    </button>
+                    
+                    <div id="delete-result" class="mt-3"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -262,6 +281,69 @@
                 // Reset button state
                 importBtn.disabled = false;
                 importBtn.textContent = `Import ${endpoint.charAt(0).toUpperCase() + endpoint.slice(1)}`;
+            }
+        }
+
+        // Delete daily sales
+        async function deleteDailySales() {
+            const deleteDate = document.getElementById('delete-date').value;
+            const resultDiv = document.getElementById('delete-result');
+            const deleteBtn = document.getElementById('delete-btn');
+            const selectedPharmacy = getSelectedPharmacy();
+            
+            if (!deleteDate) {
+                alert('Please select a date to delete');
+                return;
+            }
+
+            // Confirm deletion
+            if (!confirm(`Are you sure you want to delete ALL daily sales records for ${deleteDate}?\n\nThis action cannot be undone!`)) {
+                return;
+            }
+
+            // Show loading state
+            deleteBtn.disabled = true;
+            deleteBtn.textContent = 'Deleting...';
+            resultDiv.innerHTML = '<p class="text-sm text-orange-600">⏳ Deleting records...</p>';
+
+            try {
+                const response = await fetch('/api/import/delete-daily-sales', {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        sale_date: deleteDate,
+                        pharmacy_id: selectedPharmacy
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="text-green-800 text-sm">
+                            <p class="font-medium">✅ Deletion Successful</p>
+                            <p class="mt-1">${result.message}</p>
+                            <p class="text-xs mt-1">Records deleted: ${result.deleted_count}</p>
+                            <p class="text-xs">Pharmacy: ${selectedPharmacy}</p>
+                        </div>
+                    `;
+                    
+                    // Clear the date field
+                    document.getElementById('delete-date').value = '';
+                    
+                    // Refresh status after successful deletion
+                    setTimeout(checkStatus, 1000);
+                } else {
+                    resultDiv.innerHTML = `<p class="text-red-800 text-sm">❌ Error: ${result.error}</p>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="text-red-800 text-sm">❌ Network Error: ${error.message}</p>`;
+            } finally {
+                // Reset button state
+                deleteBtn.disabled = false;
+                deleteBtn.textContent = 'Delete Daily Sales for Selected Date';
             }
         }
 

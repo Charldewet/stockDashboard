@@ -4,7 +4,7 @@ from services.import_service import ImportService
 import os
 import tempfile
 
-import_bp = Blueprint('import', __name__, url_prefix='/api/stock/import')
+import_bp = Blueprint('import', __name__)
 
 def allowed_file(filename, file_type='csv'):
     """Check if file has allowed extension"""
@@ -143,6 +143,34 @@ def import_daily_sales():
                 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@import_bp.route('/delete-daily-sales', methods=['DELETE'])
+def delete_daily_sales():
+    """Delete daily sales records for a specific date"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        sale_date = data.get('sale_date')
+        pharmacy_id = data.get('pharmacy_id', 'REITZ')
+        
+        if not sale_date:
+            return jsonify({'error': 'sale_date is required'}), 400
+        
+        # Delete daily sales for the specified date
+        result = ImportService.delete_daily_sales(sale_date, pharmacy_id)
+        
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 500
+            
+    except Exception as e:
+        return jsonify({
+            'error': f'Error deleting daily sales: {str(e)}',
+            'success': False
+        }), 500
 
 @import_bp.route('/status', methods=['GET'])
 def import_status():
