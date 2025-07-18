@@ -22,7 +22,6 @@ class Config:
         'pool_pre_ping': True,
         'pool_recycle': 300,
         'connect_args': {
-            'connect_timeout': 10,
             'application_name': 'TLC_Dashboard'
         }
     }

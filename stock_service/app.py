@@ -67,7 +67,7 @@ def create_app():
             'endpoints': {
                 'stock': '/api/stock',
                 'import': '/api/import', 
-                'smart_alerts': '/api/smart-alerts',
+                'smart_alerts': '/api/stock/smart-alerts',
                 'health': '/health'
             },
             'documentation': 'Available endpoints for stock management and analytics'
