@@ -21,7 +21,7 @@ services:
       - key: PORT
         value: 10000
       - key: PYTHON_VERSION
-        value: 3.11.18
+        value: 3.11.9
     healthCheckPath: /healthz
 
 # Database for Stock Analytics
