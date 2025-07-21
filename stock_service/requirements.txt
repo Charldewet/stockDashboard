@@ -1,10 +1,10 @@
-Flask==2.3.3
-Flask-CORS==4.0.0
-psycopg2-binary==2.9.9
-SQLAlchemy==1.4.53
-Flask-SQLAlchemy==3.0.5
-python-dotenv==1.0.0
-requests==2.31.0
-Werkzeug==2.3.7
-gunicorn==21.2.0
+Flask==3.0.3
+Flask-CORS==4.0.1
+psycopg2-binary==2.9.10
+SQLAlchemy==2.0.36
+Flask-SQLAlchemy==3.1.1
+python-dotenv==1.0.1
+requests==2.32.3
+Werkzeug==3.0.6
+gunicorn==23.0.0
 # PyMuPDF and pandas moved to optional requirements for faster deployment 

@@ -87,6 +87,7 @@ if __name__ == '__main__':
         # Test database connection
         with app.app_context():
             db.session.execute(db.text('SELECT 1'))
+            db.session.commit()
             print("✅ Database connection successful!")
     except Exception as e:
         print(f"❌ Database connection failed: {e}")
