@@ -95,6 +95,18 @@ function App() {
     }
   };
 
+  // Handle SPA routing for Render platform
+  useEffect(() => {
+    const redirectPath = sessionStorage.getItem('redirectPath');
+    if (redirectPath && redirectPath !== '/') {
+      sessionStorage.removeItem('redirectPath');
+      // Navigate to the stored path
+      if (redirectPath === '/stock' || redirectPath === '/daily' || redirectPath === '/monthly' || redirectPath === '/yearly') {
+        window.history.replaceState(null, '', redirectPath);
+      }
+    }
+  }, []);
+
   return (
     <AuthProvider setSelectedDate={setSelectedDate}>
       <Router>
