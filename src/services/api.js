@@ -262,8 +262,11 @@ const getDailyStockApiBaseUrl = () => {
   const currentHost = window.location.hostname
   
   // Production: Use separate stock backend service
-  if (currentHost.includes('onrender.com') || import.meta.env.PROD) {
-    return 'https://tlc-stock-backend.onrender.com/api/stock'
+  if (currentHost.includes('onrender.com') || 
+      currentHost.includes('pharmasight.co.za') || 
+      currentHost.includes('tlcdashboard.co.za') || 
+      import.meta.env.PROD) {
+    return 'https://tlc-stock-service.onrender.com/api/stock'
   }
   
   // Development: Use current host (works for both localhost and network access)
@@ -402,9 +405,9 @@ export const dailyStockAPI = {
   },
 
   // Get low GP products for a day
-  getLowGPProducts: async (pharmacy, date, threshold = 20) => {
+  getLowGPProducts: async (pharmacy, date, threshold = 20, excludePDST = false) => {
     const response = await dailyStockApi.get(`/low_gp_products/${pharmacy}/${date}`, {
-      params: { threshold }
+      params: { threshold, exclude_pdst: excludePDST }
     })
     return response.data
   },
@@ -427,6 +430,46 @@ export const dailyStockAPI = {
   getLowGPProductsByDepartment: async (pharmacy, date, departmentCode, threshold = 25) => {
     const response = await dailyStockApi.get(`/low_gp_products_by_department/${pharmacy}/${date}/${departmentCode}`, {
       params: { threshold }
+    })
+    return response.data
+  },
+
+  // Get top moving products for a date range (month to date)
+  getTopMovingProductsRange: async (pharmacy, startDate, endDate, limit = 20) => {
+    const response = await dailyStockApi.get(`/top_moving_range/${pharmacy}/${startDate}/${endDate}`, {
+      params: { limit }
+    })
+    return response.data
+  },
+
+  // Get overall best sellers based on baseline data
+  getBestSellers: async (pharmacy, limit = 20) => {
+    const response = await dailyStockApi.get(`/best_sellers/${pharmacy}`, {
+      params: { limit }
+    })
+    return response.data
+  },
+
+  // Get dormant stock with significant value
+  getDormantStockWithValue: async (pharmacy, limit = 20, daysThreshold = 30) => {
+    const response = await dailyStockApi.get(`/dormant_stock_with_value/${pharmacy}`, {
+      params: { limit, days_threshold: daysThreshold }
+    })
+    return response.data
+  },
+
+  // Get reorder recommendations
+  getReorderRecommendations: async (pharmacy, analysisDays = 30) => {
+    const response = await dailyStockApi.get(`/recommendations/${pharmacy}`, {
+      params: { analysis_days: analysisDays }
+    })
+    return response.data
+  },
+
+  // Get overstock alerts
+  getOverstockAlerts: async (pharmacy, analysisDays = 365) => {
+    const response = await dailyStockApi.get(`/overstock-alerts/${pharmacy}`, {
+      params: { analysis_days: analysisDays }
     })
     return response.data
   }

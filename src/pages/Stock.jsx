@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { TrendingUp, TrendingDown, Package, AlertTriangle, DollarSign, BarChart3, Calendar, AlertCircle, ShoppingCart } from 'lucide-react'
+import { TrendingUp, TrendingDown, Package, AlertTriangle, DollarSign, BarChart3, Calendar, AlertCircle, ShoppingCart, Download, FileSpreadsheet } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { stockAPI, financialAPI, dailyStockAPI } from '../services/api'
 import { formatDateLocal } from '../utils/dateUtils.js'
-import SmartAlertsPanel from '../components/SmartAlertsPanel'
+import OrderingSuggestions from '../components/OrderingSuggestions'
+import OverstockAlerts from '../components/OverstockAlerts';
 import { Line, Bar } from 'react-chartjs-2'
 import {
   Chart as ChartJS,
@@ -27,6 +28,22 @@ ChartJS.register(
   Tooltip,
   Legend
 )
+
+// Download Button Component
+const DownloadButton = ({ onExport, disabled = false }) => {
+  return (
+    <button
+      onClick={onExport}
+      disabled={disabled}
+      className={`p-1 rounded hover:bg-surface-tertiary transition-colors flex items-center gap-1 ${
+        disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+      }`}
+      title="Export to CSV"
+    >
+      <Download className="w-4 h-4 text-text-secondary" />
+    </button>
+  );
+};
 
 // Sparkline Chart Component
 const SparklineChart = ({ data, color }) => {
@@ -170,7 +187,9 @@ const Stock = ({ selectedDate }) => {
     lowGPProducts: [],
     topPerformingDepartments: [],
     departmentsHeatmap: [],
-    movements: []
+    movements: [],
+    bestSellers: [],
+    dormantStock: []
   });
   const [dailyStockLoading, setDailyStockLoading] = useState(false);
   const [dailyStockError, setDailyStockError] = useState(null);
@@ -178,6 +197,8 @@ const Stock = ({ selectedDate }) => {
   const [selectedDepartment, setSelectedDepartment] = useState(null);
   const [departmentLowGPProducts, setDepartmentLowGPProducts] = useState([]);
   const [departmentProductsLoading, setDepartmentProductsLoading] = useState(false);
+  const [excludePDST, setExcludePDST] = useState(false);
+  const [topMovingMode, setTopMovingMode] = useState('daily'); // 'daily' or 'monthly'
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-ZA', {
@@ -190,6 +211,85 @@ const Stock = ({ selectedDate }) => {
 
   const formatNumber = (num) => {
     return new Intl.NumberFormat('en-ZA').format(num);
+  };
+
+  // Export functions
+  const exportToCSV = (data, filename, headers) => {
+    const csvContent = [
+      headers.join(','),
+      ...data.map(row => headers.map(header => {
+        const value = row[header];
+        // Wrap in quotes if contains comma and escape quotes
+        if (typeof value === 'string' && value.includes(',')) {
+          return `"${value.replace(/"/g, '""')}"`;
+        }
+        return value || '';
+      }).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${filename}_${formatDateLocal(selectedDate)}.csv`;
+    link.click();
+  };
+
+
+
+  const handleExportTopMoving = () => {
+    const data = dailyStockData.topMovingProducts.map(product => ({
+      'Rank': dailyStockData.topMovingProducts.indexOf(product) + 1,
+      'Product Name': product.productName || '',
+      'Stock Code': product.stockCode || '',
+      'Quantity Moved': product.quantityMoved || 0,
+      'GP%': product.grossProfit && product.valueMovement ? 
+        ((product.grossProfit / product.valueMovement) * 100).toFixed(1) : '--'
+    }));
+    
+    const headers = ['Rank', 'Product Name', 'Stock Code', 'Quantity Moved', 'GP%'];
+    exportToCSV(data, 'top_moving_products', headers);
+  };
+
+  const handleExportLowGP = () => {
+    const data = dailyStockData.lowGPProducts.map(product => ({
+      'Rank': dailyStockData.lowGPProducts.indexOf(product) + 1,
+      'Product Name': product.productName || '',
+      'Stock Code': product.stockCode || '',
+      'GP%': typeof product.grossProfitPercent === 'number' ? product.grossProfitPercent.toFixed(1) : '--',
+      'Cost Price': product.salesValue && product.grossProfitPercent ? 
+        formatCurrency(product.salesValue * (1 - product.grossProfitPercent / 100)) : '--',
+      'Sales Price': typeof product.salesValue === 'number' ? formatCurrency(product.salesValue) : '--'
+    }));
+    
+    const headers = ['Rank', 'Product Name', 'Stock Code', 'GP%', 'Cost Price', 'Sales Price'];
+    exportToCSV(data, 'low_gp_products', headers);
+  };
+
+  const handleExportBestSellers = () => {
+    const data = dailyStockData.bestSellers.map(product => ({
+      'Rank': dailyStockData.bestSellers.indexOf(product) + 1,
+      'Product Name': product.productName || '',
+      'Stock Code': product.stockCode || '',
+      'Daily Avg Sales': product.dailyAvgSales || 0,
+      'Current SOH': product.currentSOH || 0
+    }));
+    
+    const headers = ['Rank', 'Product Name', 'Stock Code', 'Daily Avg Sales', 'Current SOH'];
+    exportToCSV(data, 'best_sellers', headers);
+  };
+
+  const handleExportSlowMovers = () => {
+    const data = dailyStockData.dormantStock.map(product => ({
+      'Rank': dailyStockData.dormantStock.indexOf(product) + 1,
+      'Product Name': product.productName || '',
+      'Stock Code': product.stockCode || '',
+      'Estimated Cost Value': formatCurrency(product.estimatedCostValue || 0),
+      'Daily Avg Sales': product.dailyAvgSales?.toFixed(3) || 0,
+      'Current SOH': product.currentSOH || 0
+    }));
+    
+    const headers = ['Rank', 'Product Name', 'Stock Code', 'Estimated Cost Value', 'Daily Avg Sales', 'Current SOH'];
+    exportToCSV(data, 'high_value_slow_movers', headers);
   };
 
   // Handle department bar click
@@ -522,15 +622,25 @@ const Stock = ({ selectedDate }) => {
     }
   };
 
-  const fetchDailyStockData = async (dateObj) => {
+  const fetchDailyStockData = async (dateObj, mode = topMovingMode) => {
     setDailyStockLoading(true);
     setDailyStockError(null);
-    
     try {
       const date = formatDateLocal(dateObj);
-      console.log('Fetching daily stock data for:', date);
-      
-      // Fetch data from the second database in parallel
+      let topMovingPromise;
+      if (mode === 'monthly') {
+        const startOfMonth = new Date(dateObj.getFullYear(), dateObj.getMonth(), 1);
+        const startDate = formatDateLocal(startOfMonth);
+        topMovingPromise = dailyStockAPI.getTopMovingProductsRange(selectedPharmacy, startDate, date, 20).catch(err => {
+          console.warn('Top moving products (monthly) not available:', err.message);
+          return { products: [] };
+        });
+      } else {
+        topMovingPromise = dailyStockAPI.getTopMovingProducts(selectedPharmacy, date, 20).catch(err => {
+          console.warn('Top moving products (daily) not available:', err.message);
+          return { products: [] };
+        });
+      }
       const [
         summaryData,
         topMovingData,
@@ -538,21 +648,20 @@ const Stock = ({ selectedDate }) => {
         lowGPData,
         topDepartmentsData,
         heatmapData,
-        movementsData
+        movementsData,
+        bestSellersData,
+        dormantStockData
       ] = await Promise.all([
         dailyStockAPI.getDailyStockSummary(selectedPharmacy, date).catch(err => {
           console.warn('Daily stock summary not available:', err.message);
           return { totalReceipts: 0, totalIssues: 0, totalAdjustments: 0, netMovement: 0 };
         }),
-        dailyStockAPI.getTopMovingProducts(selectedPharmacy, date, 5).catch(err => {
-          console.warn('Top moving products not available:', err.message);
-          return { products: [] };
-        }),
+        topMovingPromise,
         dailyStockAPI.getLowStockAlerts(selectedPharmacy, date).catch(err => {
           console.warn('Low stock alerts not available:', err.message);
           return { alerts: [] };
         }),
-        dailyStockAPI.getLowGPProducts(selectedPharmacy, date, gpThreshold).catch(err => {
+        dailyStockAPI.getLowGPProducts(selectedPharmacy, date, gpThreshold, excludePDST).catch(err => {
           console.warn('Low GP products not available:', err.message);
           return [];
         }),
@@ -567,9 +676,16 @@ const Stock = ({ selectedDate }) => {
         dailyStockAPI.getDailyStockMovements(selectedPharmacy, date, date).catch(err => {
           console.warn('Daily stock movements not available:', err.message);
           return { movements: [] };
+        }),
+        dailyStockAPI.getBestSellers(selectedPharmacy, 20).catch(err => {
+          console.warn('Best sellers not available:', err.message);
+          return { products: [] };
+        }),
+        dailyStockAPI.getDormantStockWithValue(selectedPharmacy, 20).catch(err => {
+          console.warn('High-value slow movers not available:', err.message);
+          return { products: [] };
         })
       ]);
-      
       setDailyStockData({
         summary: summaryData,
         topMovingProducts: topMovingData.products || [],
@@ -577,9 +693,10 @@ const Stock = ({ selectedDate }) => {
         lowGPProducts: lowGPData || [],
         topPerformingDepartments: topDepartmentsData.departments || [],
         departmentsHeatmap: heatmapData.departments || [],
-        movements: movementsData.movements || []
+        movements: movementsData.movements || [],
+        bestSellers: bestSellersData.products || [],
+        dormantStock: dormantStockData.products || []
       });
-      
       console.log('Daily stock data loaded:', {
         summary: summaryData,
         topMovingCount: topMovingData.products?.length || 0,
@@ -587,9 +704,10 @@ const Stock = ({ selectedDate }) => {
         lowGPCount: lowGPData?.length || 0,
         topDepartmentsCount: topDepartmentsData.departments?.length || 0,
         heatmapCount: heatmapData.departments?.length || 0,
-        movementsCount: movementsData.movements?.length || 0
+        movementsCount: movementsData.movements?.length || 0,
+        bestSellersCount: bestSellersData.products?.length || 0,
+        highValueSlowMoversCount: dormantStockData.products?.length || 0
       });
-      
     } catch (err) {
       console.error('Error fetching daily stock data:', err);
       setDailyStockError(err.response?.data?.message || 'Failed to fetch daily stock data');
@@ -603,9 +721,9 @@ const Stock = ({ selectedDate }) => {
       fetchStockData(selectedDate);
       fetchMonthlyChartData(selectedDate);
       fetchYearlyInventoryData(selectedDate);
-      fetchDailyStockData(selectedDate);
+      fetchDailyStockData(selectedDate, topMovingMode);
     }
-  }, [selectedDate, selectedPharmacy, gpThreshold]);
+  }, [selectedDate, selectedPharmacy, gpThreshold, excludePDST, topMovingMode]);
 
   if (loading) {
     return (
@@ -838,9 +956,6 @@ const Stock = ({ selectedDate }) => {
       <div className="mb-4">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-text-primary">Daily Stock Activity</h2>
-          <p className="text-xs text-text-secondary">
-            Data from inventory management system
-          </p>
         </div>
         
         {dailyStockLoading ? (
@@ -864,57 +979,63 @@ const Stock = ({ selectedDate }) => {
           </div>
         ) : (
           <>
-
-
-            {/* Low Stock Alerts and Top Moving Products Side by Side */}
+            {/* Top Moving Products and Low GP Products Side by Side */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-              {/* Low Stock Alerts */}
-              <div className="card">
-                <div className="flex items-center gap-2 mb-3">
-                  <AlertTriangle className="w-4 h-4 text-status-warning" />
-                  <h3 className="text-sm font-semibold text-text-primary">Low Stock Alerts</h3>
-                  <span className="bg-status-warning bg-opacity-20 text-status-warning text-xs px-2 py-1 rounded-full">
-                    {dailyStockData.lowStockAlerts?.length || 0}
-                  </span>
-                </div>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {dailyStockData.lowStockAlerts?.length > 0 ? (
-                    dailyStockData.lowStockAlerts.map((alert, index) => (
-                      <div key={index} className="flex items-center justify-between text-xs p-2 bg-surface-tertiary rounded">
-                        <span className="font-medium truncate flex-1">{alert.productName || `Product ${index + 1}`}</span>
-                        <span className="text-status-warning font-bold ml-2">
-                          {alert.currentStock || 0} left
-                        </span>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-4">
-                      <p className="text-text-secondary text-xs">No low stock alerts</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
               {/* Top Moving Products */}
               <div className="card">
                 <div className="flex items-center gap-2 mb-3">
                   <TrendingUp className="w-4 h-4 text-status-success" />
-                  <h3 className="text-sm font-semibold text-text-primary">Top Moving Products Today</h3>
+                  <h3 className="text-sm font-semibold text-text-primary">
+                    Top Moving Products {topMovingMode === 'monthly' ? 'Month to Date' : 'Today'}
+                  </h3>
+                  <div className="ml-auto flex items-center gap-2">
+                    <div className="flex gap-1">
+                      <button
+                        className={`px-2 py-1 rounded text-xs font-medium border ${topMovingMode === 'daily' ? 'bg-accent-primary text-white border-accent-primary' : 'bg-surface-tertiary text-text-secondary border-surface-tertiary'}`}
+                        onClick={() => setTopMovingMode('daily')}
+                      >
+                        Daily
+                      </button>
+                      <button
+                        className={`px-2 py-1 rounded text-xs font-medium border ${topMovingMode === 'monthly' ? 'bg-accent-primary text-white border-accent-primary' : 'bg-surface-tertiary text-text-secondary border-surface-tertiary'}`}
+                        onClick={() => setTopMovingMode('monthly')}
+                      >
+                        Monthly
+                      </button>
+                    </div>
+                    <DownloadButton 
+                      onExport={handleExportTopMoving}
+                      disabled={!dailyStockData.topMovingProducts?.length}
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2 max-h-68 overflow-y-auto">
+                <div className="space-y-2 max-h-72 overflow-y-auto">
                   {dailyStockData.topMovingProducts?.length > 0 ? (
-                    dailyStockData.topMovingProducts.slice(0, 8).map((product, index) => (
+                    dailyStockData.topMovingProducts.slice(0, 20).map((product, index) => (
                       <div key={index} className="bg-surface-tertiary rounded-lg p-2">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2 flex-1 min-w-0">
                             <span className="text-xs font-medium text-text-secondary flex-shrink-0">#{index + 1}.</span>
-                            <span className="text-sm font-medium text-text-primary truncate">
-                              {product.productName || `Product ${index + 1}`}
-                            </span>
+                            <div className="flex flex-col flex-1 min-w-0">
+                              <span className="text-sm font-medium text-text-primary truncate">
+                                {product.productName || `Product ${index + 1}`}
+                              </span>
+                              <span className="text-xs text-text-secondary truncate">
+                                {product.stockCode || 'N/A'}
+                              </span>
+                            </div>
                           </div>
-                          <span className="text-xs text-status-success font-bold flex-shrink-0 ml-2">
-                            {product.quantityMoved || 0} units
-                          </span>
+                          <div className="flex flex-col items-end flex-shrink-0 ml-2">
+                            <span className="text-xs text-status-success font-bold">
+                              {product.quantityMoved || 0} units
+                            </span>
+                            {product.grossProfit !== undefined && product.grossProfit !== null && product.valueMovement ? (
+                              <span className="text-xs text-text-secondary font-medium">
+                                {/* Calculate GP%: grossProfit / valueMovement * 100 */}
+                                {product.valueMovement > 0 ? `${((product.grossProfit / product.valueMovement) * 100).toFixed(1)}% GP` : '--'}
+                              </span>
+                            ) : null}
+                          </div>
                         </div>
                       </div>
                     ))
@@ -925,10 +1046,7 @@ const Stock = ({ selectedDate }) => {
                   )}
                 </div>
               </div>
-            </div>
 
-            {/* Low GP Products and Second Card Side by Side */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
               {/* Low GP Products */}
               <div className="card">
                 <div className="flex items-center justify-between mb-3">
@@ -939,40 +1057,76 @@ const Stock = ({ selectedDate }) => {
                       {dailyStockData.lowGPProducts?.length || 0}
                     </span>
                   </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-1 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={excludePDST}
+                        onChange={(e) => setExcludePDST(e.target.checked)}
+                        className="w-3 h-3 text-status-error border-surface-tertiary rounded focus:ring-status-error focus:ring-1"
+                      />
+                      <span className="text-xs text-text-secondary">Exclude SEP</span>
+                    </label>
+                  </div>
+                  
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-text-secondary">Below:</span>
-                    <div className="flex items-center gap-2">
-                      <select
-                        value={gpThreshold}
-                        onChange={(e) => setGpThreshold(Number(e.target.value))}
-                        className="text-xs font-medium text-status-error bg-surface-tertiary border border-surface-tertiary rounded px-2 py-1 focus:outline-none focus:border-status-error cursor-pointer"
-                      >
-                        {Array.from({ length: 16 }, (_, i) => i + 15).map(value => (
-                          <option key={value} value={value}>
-                            {value}%
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    <select
+                      value={gpThreshold}
+                      onChange={(e) => setGpThreshold(Number(e.target.value))}
+                      className="text-xs font-medium text-status-error bg-surface-tertiary border border-surface-tertiary rounded px-2 py-1 focus:outline-none focus:border-status-error cursor-pointer"
+                    >
+                      {Array.from({ length: 16 }, (_, i) => i + 15).map(value => (
+                        <option key={value} value={value}>
+                          {value}%
+                        </option>
+                      ))}
+                    </select>
                   </div>
+                  
+                  <DownloadButton 
+                    onExport={handleExportLowGP}
+                    disabled={!dailyStockData.lowGPProducts?.length}
+                  />
                 </div>
                 <div className="space-y-2 max-h-72 overflow-y-auto">
                   {dailyStockData.lowGPProducts?.length > 0 ? (
-                    dailyStockData.lowGPProducts.map((product, index) => (
-                      <div key={index} className="bg-surface-tertiary rounded-lg p-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <span className="text-xs font-medium text-text-secondary flex-shrink-0">#{index + 1}.</span>
-                            <span className="text-sm font-medium text-text-primary truncate">
-                              {product.productName || `Product ${index + 1}`}
-                            </span>
+                    dailyStockData.lowGPProducts.map((product, index) => {
+                      // Calculate cost price if possible
+                      let costPrice = null;
+                      if (
+                        typeof product.salesValue === 'number' &&
+                        typeof product.grossProfitPercent === 'number'
+                      ) {
+                        costPrice = product.salesValue * (1 - product.grossProfitPercent / 100);
+                      }
+                      return (
+                        <div key={index} className="bg-surface-tertiary rounded-lg p-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <span className="text-xs font-medium text-text-secondary flex-shrink-0">#{index + 1}.</span>
+                              <div className="flex flex-col flex-1 min-w-0">
+                                <span className="text-sm font-medium text-text-primary truncate">
+                                  {product.productName || `Product ${index + 1}`}
+                                </span>
+                                <span className="text-xs text-text-secondary truncate">
+                                  {product.stockCode || 'N/A'}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex flex-col items-end flex-shrink-0 ml-2">
+                              <span className="text-xs text-status-error font-bold">
+                                {typeof product.grossProfitPercent === 'number' ? `${product.grossProfitPercent.toFixed(1)}% GP` : '--'}
+                              </span>
+                              <span className="text-xs text-text-secondary font-medium mt-0.5">
+                                Cost: {costPrice !== null ? formatCurrency(costPrice) : '--'} - SP: {typeof product.salesValue === 'number' ? formatCurrency(product.salesValue) : '--'}
+                              </span>
+                            </div>
                           </div>
-                          <span className="text-xs text-status-error font-bold flex-shrink-0 ml-2">
-                            {product.grossProfitPercent?.toFixed(1)}% GP
-                          </span>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <div className="text-center py-4">
                       <p className="text-text-secondary text-xs">No low GP products</p>
@@ -980,33 +1134,47 @@ const Stock = ({ selectedDate }) => {
                   )}
                 </div>
               </div>
+            </div>
 
-              {/* Top Performing Departments */}
+            {/* Best Sellers and Worst Sellers Side by Side */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+              {/* Best Sellers */}
               <div className="card">
-                <div className="flex items-center gap-2 mb-3">
-                  <BarChart3 className="w-4 h-4 text-status-success" />
-                  <h3 className="text-sm font-semibold text-text-primary">Top Performing Departments</h3>
-                  <span className="bg-status-success bg-opacity-20 text-status-success text-xs px-2 py-1 rounded-full">
-                    {dailyStockData.topPerformingDepartments?.length || 0}
-                  </span>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-status-success" />
+                    <h3 className="text-sm font-semibold text-text-primary">Top 20 Best Sellers</h3>
+                    <span className="bg-status-success bg-opacity-20 text-status-success text-xs px-2 py-1 rounded-full">
+                      Based on 12-month avg
+                    </span>
+                  </div>
+                  <DownloadButton 
+                    onExport={handleExportBestSellers}
+                    disabled={!dailyStockData.bestSellers?.length}
+                  />
                 </div>
                 <div className="space-y-2 max-h-72 overflow-y-auto">
-                  {dailyStockData.topPerformingDepartments?.length > 0 ? (
-                    dailyStockData.topPerformingDepartments.map((dept, index) => (
+                  {dailyStockData.bestSellers?.length > 0 ? (
+                    dailyStockData.bestSellers.map((product, index) => (
                       <div key={index} className="bg-surface-tertiary rounded-lg p-2">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2 flex-1 min-w-0">
                             <span className="text-xs font-medium text-text-secondary flex-shrink-0">#{index + 1}.</span>
-                            <span className="text-sm font-medium text-text-primary truncate">
-                              {dept.departmentName || `Department ${index + 1}`}
-                            </span>
+                            <div className="flex flex-col flex-1 min-w-0">
+                              <span className="text-sm font-medium text-text-primary truncate">
+                                {product.productName || `Product ${index + 1}`}
+                              </span>
+                              <span className="text-xs text-text-secondary truncate">
+                                {product.stockCode || 'N/A'}
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex flex-col items-end text-xs">
-                            <span className="text-status-success font-bold">
-                              {formatCurrency(dept.totalTurnover)}
+                          <div className="flex flex-col items-end flex-shrink-0 ml-2">
+                            <span className="text-xs text-status-success font-bold">
+                              {product.dailyAvgSales} avg/day
                             </span>
-                            <span className="text-text-secondary">
-                              {dept.productsSold} items
+                            <span className="text-xs text-text-secondary font-medium">
+                              SOH: {product.currentSOH || 0}
                             </span>
                           </div>
                         </div>
@@ -1014,7 +1182,57 @@ const Stock = ({ selectedDate }) => {
                     ))
                   ) : (
                     <div className="text-center py-4">
-                      <p className="text-text-secondary text-xs">No department data available</p>
+                      <p className="text-text-secondary text-xs">No baseline data available</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* High-Value Slow Movers */}
+              <div className="card">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Package className="w-4 h-4 text-status-warning" />
+                    <h3 className="text-sm font-semibold text-text-primary">High-Value Slow Movers</h3>
+                    <span className="bg-status-warning bg-opacity-20 text-status-warning text-xs px-2 py-1 rounded-full">
+                      R1000+ value
+                    </span>
+                  </div>
+                  <DownloadButton 
+                    onExport={handleExportSlowMovers}
+                    disabled={!dailyStockData.dormantStock?.length}
+                  />
+                </div>
+                <div className="space-y-2 max-h-72 overflow-y-auto">
+                  {dailyStockData.dormantStock?.length > 0 ? (
+                    dailyStockData.dormantStock.map((product, index) => (
+                      <div key={index} className="bg-surface-tertiary rounded-lg p-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <span className="text-xs font-medium text-text-secondary flex-shrink-0">#{index + 1}.</span>
+                            <div className="flex flex-col flex-1 min-w-0">
+                              <span className="text-sm font-medium text-text-primary truncate">
+                                {product.productName || `Product ${index + 1}`}
+                              </span>
+                              <span className="text-xs text-text-secondary truncate">
+                                {product.stockCode || 'N/A'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end flex-shrink-0 ml-2">
+                            <span className="text-xs text-status-warning font-bold">
+                              {formatCurrency(product.estimatedCostValue || 0)} tied up
+                            </span>
+                            <span className="text-xs text-text-secondary font-medium">
+                              {product.dailyAvgSales?.toFixed(3)} avg/day • SOH: {product.currentSOH || 0}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-4">
+                      <p className="text-text-secondary text-xs">No high-value slow movers found</p>
                     </div>
                   )}
                 </div>
@@ -1214,9 +1432,14 @@ const Stock = ({ selectedDate }) => {
                           <span className="text-xs font-medium text-text-secondary flex-shrink-0">
                             #{index + 1}.
                           </span>
-                          <span className="text-sm font-medium text-text-primary truncate">
-                            {product.productName}
-                          </span>
+                          <div className="flex flex-col flex-1 min-w-0">
+                            <span className="text-sm font-medium text-text-primary truncate">
+                              {product.productName}
+                            </span>
+                            <span className="text-xs text-text-secondary truncate">
+                              {product.stockCode || 'N/A'}
+                            </span>
+                          </div>
                         </div>
                         <div className="flex items-center gap-4 text-xs text-text-secondary">
                           <span>Code: {product.stockCode}</span>
@@ -1251,14 +1474,25 @@ const Stock = ({ selectedDate }) => {
         </div>
       )}
 
-      {/* Smart Alerts Panel */}
+      {/* Ordering Suggestions */}
       <div className="mb-4">
-        <SmartAlertsPanel 
+        <OrderingSuggestions 
           selectedDate={selectedDate} 
           formatCurrency={formatCurrency}
-          formatDateLocal={formatDateLocal}
+          formatNumber={formatNumber}
         />
       </div>
+
+      {/* Overstock Alerts */}
+      <div className="mb-4">
+        <OverstockAlerts 
+          selectedDate={selectedDate} 
+          formatCurrency={formatCurrency}
+          formatNumber={formatNumber}
+        />
+      </div>
+
+
 
     </div>
   );

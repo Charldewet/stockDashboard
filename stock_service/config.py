@@ -33,10 +33,13 @@ class Config:
     
     # CORS Configuration
     CORS_ORIGINS = [
-        'http://localhost:3000',  # Local development
-        'http://localhost:5173',  # Vite dev server
-        'https://tlc-dashboard-frontend.onrender.com',  # Production frontend (static site)
-        # Add your actual frontend domain here when deployed
+        'http://localhost:3000',  # Local development (React)
+        'http://localhost:5173',  # Vite dev server (default)
+        'http://localhost:5174',  # Vite dev server (backup port)
+        'http://localhost:5175',  # Vite dev server (current port)
+        'https://tlc-dashboard-frontend.onrender.com',  # Production frontend (Render)
+        'https://www.pharmasight.co.za',  # Production frontend (pharmasight)
+        'https://www.tlcdashboard.co.za',  # Production frontend (tlcdashboard)
     ]
     
     # File Upload Configuration

@@ -87,19 +87,27 @@ class ImportService:
                         "GrossProfitPercent": float(gp_pct)
                     })
 
-            # Convert to DataFrame
+            # Convert to DataFrame for processing
             df = pd.DataFrame(records)
             print(f"✅ Extracted {len(df)} records from PDF")
             
-
-            
-            return df
+            # Return consistent response structure
+            return {
+                'success': True,
+                'sales_data': records,  # Return the raw records list
+                'records_count': len(records),
+                'message': f'Successfully extracted {len(records)} records from PDF'
+            }
             
         except Exception as e:
             error_msg = f"❌ Error extracting PDF: {str(e)}"
             print(error_msg)
             print(traceback.format_exc())
-            raise Exception(error_msg)
+            return {
+                'success': False,
+                'error': error_msg,
+                'sales_data': []
+            }
     
     @staticmethod
     def import_departments(csv_file_path, pharmacy_id='REITZ'):
@@ -311,6 +319,217 @@ class ImportService:
             return {'success': False, 'error': error_msg}
     
     @staticmethod
+    def import_baseline(file_path, baseline_end_date, pharmacy_id='REITZ'):
+        """Import 12-month baseline data from CSV or PDF file - replaces all existing baseline data"""
+        try:
+            print(f"📂 Starting 12-month baseline import from {file_path}")
+            print(f"📅 Baseline end date: {baseline_end_date}")
+            
+            # Calculate 12-month window
+            from datetime import datetime, timedelta
+            end_date = datetime.strptime(baseline_end_date, '%Y-%m-%d').date()
+            start_date = end_date.replace(year=end_date.year - 1) + timedelta(days=1)
+            print(f"📊 12-month window: {start_date} to {end_date}")
+            
+            # Determine if PDF or CSV
+            file_extension = os.path.splitext(file_path)[1].lower()
+            
+            if file_extension == '.pdf':
+                # Extract from PDF
+                extraction_result = ImportService.extract_sales_from_pdf(file_path)
+                if not extraction_result.get('success', False):
+                    return extraction_result
+                
+                # The PDF extraction returns a structured result
+                sales_data = extraction_result.get('sales_data', [])
+                print(f"📄 Extracted {len(sales_data)} records from PDF")
+                
+                if not sales_data:
+                    return {'success': False, 'error': 'No sales data found in PDF'}
+                
+                # Convert to DataFrame for consistent processing
+                df = pd.DataFrame(sales_data)
+                
+            else:
+                # Process CSV file
+                if not PANDAS_AVAILABLE:
+                    return {
+                        'success': False,
+                        'error': 'CSV processing not available. pandas not installed.'
+                    }
+                
+                df = pd.read_csv(file_path)
+                print(f"📊 Found {len(df)} rows in baseline CSV")
+            
+            # Filter items with movement > 0 (handle both CSV and PDF field names)
+            if 'QuantitySold' in df.columns:
+                # CSV format
+                df_with_movement = df[df['QuantitySold'] > 0]
+                qty_field = 'QuantitySold'
+                cost_field = 'CostOfSales'
+            elif 'SalesQty' in df.columns:
+                # PDF format
+                df_with_movement = df[df['SalesQty'] > 0]
+                qty_field = 'SalesQty'
+                cost_field = 'SalesCost'
+            else:
+                # Fallback - use all data
+                df_with_movement = df
+                qty_field = 'QuantitySold'  # Default
+                cost_field = 'CostOfSales'  # Default
+                
+            print(f"✅ Found {len(df_with_movement)} items with movement in baseline data")
+            print(f"📊 Using fields: quantity='{qty_field}', cost='{cost_field}'")
+            
+            # STEP 1: Clear all existing baseline data (using special date marker)
+            baseline_marker_date = '1900-01-01'  # Special date to mark baseline data
+            
+            # Get product IDs for this pharmacy (subquery approach to avoid join/delete issue)
+            pharmacy_product_ids = db.session.query(Product.id).filter(
+                Product.pharmacy_id == pharmacy_id
+            ).subquery()
+            
+            # Count existing baseline records for this pharmacy
+            deleted_count = DailySales.query.filter(
+                DailySales.sale_date == baseline_marker_date,
+                DailySales.product_id.in_(db.session.query(pharmacy_product_ids.c.id))
+            ).count()
+            
+            # Delete existing baseline records for this pharmacy
+            DailySales.query.filter(
+                DailySales.sale_date == baseline_marker_date,
+                DailySales.product_id.in_(db.session.query(pharmacy_product_ids.c.id))
+            ).delete(synchronize_session=False)
+            
+            print(f"🗑️ Cleared {deleted_count} existing baseline records")
+            
+            # STEP 2: Process new baseline data (same logic as daily sales)
+            stock_codes = df_with_movement['StockCode'].astype(str).str.strip().tolist()
+            dept_codes = df_with_movement['DepartmentCode'].astype(str).str.strip().unique().tolist()
+            
+            # Get existing products and departments
+            existing_products = {
+                product.stock_code: product 
+                for product in Product.query.filter(
+                    Product.stock_code.in_(stock_codes),
+                    Product.pharmacy_id == pharmacy_id
+                ).all()
+            }
+            
+            existing_departments = {
+                dept.department_code: dept 
+                for dept in Department.query.filter(Department.department_code.in_(dept_codes)).all()
+            }
+            
+            products_to_create = []
+            departments_to_create = []
+            baseline_sales_to_create = []
+            
+            # Process each row
+            for _, row in df_with_movement.iterrows():
+                dept_code = str(row['DepartmentCode']).strip()
+                stock_code = str(row['StockCode']).strip()
+                description = str(row['Description']).strip()
+                quantity_sold = float(row[qty_field]) if pd.notna(row[qty_field]) else 0
+                sales_value = float(row['SalesValue']) if pd.notna(row['SalesValue']) else 0
+                cost_of_sales = float(row[cost_field]) if pd.notna(row[cost_field]) else 0
+                gross_profit = sales_value - cost_of_sales
+                gross_profit_percent = (gross_profit / sales_value * 100) if sales_value > 0 else 0
+                on_hand = float(row['OnHand']) if pd.notna(row['OnHand']) else 0
+                
+                # Create department if needed
+                if dept_code not in existing_departments:
+                    departments_to_create.append({
+                        'department_code': dept_code,
+                        'department_name': f"Department {dept_code}"
+                    })
+                    existing_departments[dept_code] = True
+                
+                # Create product if needed
+                if stock_code not in existing_products:
+                    products_to_create.append({
+                        'stock_code': stock_code,
+                        'description': description,
+                        'department_code': dept_code,
+                        'pharmacy_id': pharmacy_id,
+                        'first_seen_date': end_date
+                    })
+            
+            # Bulk insert departments and products
+            if departments_to_create:
+                db.session.execute(
+                    text("INSERT INTO departments (department_code, department_name) VALUES " +
+                         ", ".join([f"('{dept['department_code']}', '{dept['department_name']}')" 
+                                   for dept in departments_to_create]))
+                )
+            
+            if products_to_create:
+                for i in range(0, len(products_to_create), 100):
+                    batch = products_to_create[i:i+100]
+                    db.session.bulk_insert_mappings(Product, batch)
+            
+            db.session.commit()
+            
+            # Get all product IDs for baseline sales creation
+            all_products = {
+                product.stock_code: product.id 
+                for product in Product.query.filter(
+                    Product.stock_code.in_(stock_codes),
+                    Product.pharmacy_id == pharmacy_id
+                ).all()
+            }
+            
+            # Create baseline sales records with special date marker
+            for _, row in df_with_movement.iterrows():
+                stock_code = str(row['StockCode']).strip()
+                quantity_sold = float(row[qty_field]) if pd.notna(row[qty_field]) else 0
+                sales_value = float(row['SalesValue']) if pd.notna(row['SalesValue']) else 0
+                cost_of_sales = float(row[cost_field]) if pd.notna(row[cost_field]) else 0
+                gross_profit = sales_value - cost_of_sales
+                gross_profit_percent = (gross_profit / sales_value * 100) if sales_value > 0 else 0
+                on_hand = float(row['OnHand']) if pd.notna(row['OnHand']) else 0
+                
+                if stock_code in all_products and quantity_sold > 0:
+                    baseline_sales_to_create.append({
+                        'product_id': all_products[stock_code],
+                        'sale_date': baseline_marker_date,  # Special marker for baseline data
+                        'sales_qty': quantity_sold,
+                        'sales_value': sales_value,
+                        'cost_of_sales': cost_of_sales,
+                        'gross_profit': gross_profit,
+                        'gross_profit_percent': gross_profit_percent,
+                        'on_hand': on_hand
+                    })
+            
+            # Bulk insert baseline sales records
+            if baseline_sales_to_create:
+                for i in range(0, len(baseline_sales_to_create), 100):
+                    batch = baseline_sales_to_create[i:i+100]
+                    db.session.bulk_insert_mappings(DailySales, batch)
+            
+            db.session.commit()
+            
+            result = {
+                'success': True,
+                'message': f'12-month baseline imported successfully for period {start_date} to {end_date}',
+                'baseline_period': f'{start_date} to {end_date}',
+                'products_created': len(products_to_create),
+                'departments_created': len(departments_to_create),
+                'baseline_records': len(baseline_sales_to_create),
+                'previous_baseline_cleared': deleted_count
+            }
+            
+            print(f"✅ Baseline import completed: {result}")
+            return result
+            
+        except Exception as e:
+            db.session.rollback()
+            error_msg = f"❌ Error importing baseline data: {str(e)}"
+            print(error_msg)
+            print(traceback.format_exc())
+            return {'success': False, 'error': error_msg}
+    
+    @staticmethod
     def import_daily_sales(file_path, sale_date=None, pharmacy_id='REITZ'):
         """Import daily sales from CSV or PDF file - OPTIMIZED with batch processing"""
         if not PANDAS_AVAILABLE:
@@ -332,7 +551,16 @@ class ImportService:
             
             if file_extension == '.pdf':
                 # Extract data from PDF
-                df = ImportService.extract_sales_from_pdf(file_path)
+                extraction_result = ImportService.extract_sales_from_pdf(file_path)
+                if not extraction_result.get('success', False):
+                    return extraction_result  # Return the error response
+                
+                # Convert sales_data to DataFrame
+                sales_data = extraction_result.get('sales_data', [])
+                if not sales_data:
+                    return {'success': False, 'error': 'No sales data found in PDF'}
+                
+                df = pd.DataFrame(sales_data)
                 print(f"📊 Extracted {len(df)} rows from PDF")
             elif file_extension == '.csv':
                 # Read CSV file
@@ -344,9 +572,21 @@ class ImportService:
             if df.empty:
                 raise Exception("No data found in the file")
             
+            # Detect field names (handle both CSV and PDF formats)
+            if 'QuantitySold' in df.columns:
+                # CSV format
+                qty_field = 'QuantitySold'
+                cost_field = 'CostOfSales'
+            elif 'SalesQty' in df.columns:
+                # PDF format  
+                qty_field = 'SalesQty'
+                cost_field = 'SalesCost'
+            else:
+                raise Exception("Required sales quantity field not found. Expected 'QuantitySold' (CSV) or 'SalesQty' (PDF)")
+            
             # Filter only items with sales > 0
-            df_with_sales = df[df['SalesQty'] > 0]
-            print(f"✅ Found {len(df_with_sales)} items with sales today")
+            df_with_sales = df[df[qty_field] > 0]
+            print(f"✅ Found {len(df_with_sales)} items with sales today (using field: '{qty_field}')")
             
             # OPTIMIZATION: Get existing data in bulk
             stock_codes = df_with_sales['StockCode'].astype(str).str.strip().tolist()
@@ -434,11 +674,10 @@ class ImportService:
                     
                     sale_data = {
                         'on_hand': float(row.get('OnHand', 0)),
-                        'sales_qty': float(row.get('SalesQty', 0)),
+                        'sales_qty': float(row.get(qty_field, 0)),
                         'sales_value': float(row.get('SalesValue', 0)),
-                        'sales_cost': float(row.get('SalesCost', 0)),
+                        'cost_of_sales': float(row.get(cost_field, 0)),
                         'gross_profit': float(row.get('GrossProfit', 0)),
-                        'turnover_percent': float(row.get('TurnoverPercent', 0)),
                         'gross_profit_percent': float(row.get('GrossProfitPercent', 0))
                     }
                     

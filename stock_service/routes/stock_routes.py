@@ -22,6 +22,16 @@ def get_top_moving_products(pharmacy_id, date):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@stock_bp.route('/top_moving_range/<pharmacy_id>/<start_date>/<end_date>', methods=['GET'])
+def get_top_moving_products_range(pharmacy_id, start_date, end_date):
+    """Get top moving products for a specific pharmacy and date range"""
+    try:
+        limit = request.args.get('limit', 20, type=int)
+        products = AnalyticsService.get_top_moving_products_range(pharmacy_id, start_date, end_date, limit)
+        return jsonify(products), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @stock_bp.route('/low_stock_alerts/<pharmacy_id>/<date>', methods=['GET'])
 def get_low_stock_alerts(pharmacy_id, date):
     """Get low stock alerts for a specific pharmacy and date"""
@@ -45,11 +55,23 @@ def get_stock_movements(pharmacy_id, start_date, end_date):
 def get_reorder_recommendations(pharmacy_id):
     """Get reorder recommendations for a specific pharmacy"""
     try:
-        analysis_days = request.args.get('analysis_days', 30, type=int)
+        analysis_days = request.args.get('analysis_days', 365, type=int)
         recommendations = AnalyticsService.get_reorder_recommendations(pharmacy_id, analysis_days)
         return jsonify(recommendations), 200
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error getting reorder recommendations: {str(e)}")
+        return jsonify({'error': 'Failed to get reorder recommendations'}), 500
+
+@stock_bp.route('/overstock-alerts/<pharmacy_id>', methods=['GET'])
+def get_overstock_alerts(pharmacy_id):
+    """Get overstock alerts for slow-moving items with high inventory"""
+    try:
+        analysis_days = request.args.get('analysis_days', 365, type=int)
+        alerts = AnalyticsService.get_overstock_alerts(pharmacy_id, analysis_days)
+        return jsonify(alerts), 200
+    except Exception as e:
+        logger.error(f"Error getting overstock alerts: {str(e)}")
+        return jsonify({'error': 'Failed to get overstock alerts'}), 500
 
 @stock_bp.route('/kpis/<pharmacy_id>/<date>', methods=['GET'])
 def get_stock_kpis(pharmacy_id, date):
@@ -65,7 +87,8 @@ def get_low_gp_products(pharmacy_id, date):
     """Get products with low GP for a specific pharmacy and date"""
     try:
         gp_threshold = request.args.get('threshold', 20, type=float)
-        products = AnalyticsService.get_low_gp_products(pharmacy_id, date, gp_threshold)
+        exclude_pdst = request.args.get('exclude_pdst', 'false').lower() == 'true'
+        products = AnalyticsService.get_low_gp_products(pharmacy_id, date, gp_threshold, exclude_pdst)
         return jsonify(products), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -95,6 +118,27 @@ def get_low_gp_products_by_department(pharmacy_id, date, department_code):
     try:
         gp_threshold = request.args.get('threshold', 25, type=float)
         products = AnalyticsService.get_low_gp_products_by_department(pharmacy_id, date, department_code, gp_threshold)
+        return jsonify(products), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@stock_bp.route('/best_sellers/<pharmacy_id>', methods=['GET'])
+def get_best_sellers(pharmacy_id):
+    """Get overall best sellers based on baseline daily average sales"""
+    try:
+        limit = request.args.get('limit', 20, type=int)
+        products = AnalyticsService.get_best_sellers(pharmacy_id, limit)
+        return jsonify(products), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@stock_bp.route('/dormant_stock_with_value/<pharmacy_id>', methods=['GET'])
+def get_dormant_stock_with_value(pharmacy_id):
+    """Get dormant stock with significant value - items with no recent sales but high SOH value"""
+    try:
+        limit = request.args.get('limit', 20, type=int)
+        days_threshold = request.args.get('days_threshold', 30, type=int)
+        products = AnalyticsService.get_dormant_stock_with_value(pharmacy_id, days_threshold, limit)
         return jsonify(products), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500

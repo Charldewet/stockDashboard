@@ -58,9 +58,9 @@ def import_departments():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@import_bp.route('/history', methods=['POST'])
-def import_sales_history():
-    """Import sales history from CSV file"""
+@import_bp.route('/baseline', methods=['POST'])
+def import_baseline():
+    """Import 12-month baseline data from CSV or PDF file"""
     try:
         if 'file' not in request.files:
             return jsonify({'error': 'No file provided'}), 400
@@ -69,18 +69,25 @@ def import_sales_history():
         if file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
         
-        if not allowed_file(file.filename):
-            return jsonify({'error': 'Invalid file type. Only CSV files allowed'}), 400
+        if not allowed_file(file.filename, 'daily'):  # Use same validation as daily (CSV or PDF)
+            return jsonify({'error': 'Invalid file type. Only CSV and PDF files allowed'}), 400
         
         pharmacy_id = request.form.get('pharmacy_id', 'REITZ')
+        baseline_end_date = request.form.get('baseline_end_date')  # Required for baseline
+        
+        if not baseline_end_date:
+            return jsonify({'error': 'Baseline end date is required'}), 400
+        
+        # Determine file extension for temporary file
+        file_extension = os.path.splitext(file.filename)[1].lower()
         
         # Save file temporarily
-        with tempfile.NamedTemporaryFile(mode='wb', suffix='.csv', delete=False) as temp_file:
+        with tempfile.NamedTemporaryFile(mode='wb', suffix=file_extension, delete=False) as temp_file:
             file.save(temp_file.name)
             
             try:
-                # Import sales history
-                result = ImportService.import_sales_history(temp_file.name, pharmacy_id)
+                # Import 12-month baseline
+                result = ImportService.import_baseline(temp_file.name, baseline_end_date, pharmacy_id)
                 
                 # Clean up temp file
                 os.unlink(temp_file.name)

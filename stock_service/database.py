@@ -26,11 +26,18 @@ def reset_database(app):
 def get_db_stats(app):
     """Get basic statistics about the database"""
     with app.app_context():
+        # Count baseline records (special marker date)
+        baseline_records = DailySales.query.filter(DailySales.sale_date == '1900-01-01').count()
+        # Count regular daily sales records (excluding baseline)
+        regular_daily_sales = DailySales.query.filter(DailySales.sale_date != '1900-01-01').count()
+        
         stats = {
             'departments': Department.query.count(),
             'products': Product.query.count(),
             'sales_history_records': SalesHistory.query.count(),
-            'daily_sales_records': DailySales.query.count()
+            'daily_sales_records': regular_daily_sales,
+            'baseline_records': baseline_records,
+            'total_sales_records': DailySales.query.count()
         }
         return stats
 
