@@ -138,17 +138,22 @@ class ImportService:
             
             print(f"✅ Found {len(valid_departments)} valid departments")
             
-            # Prepare all departments for upsert operation
-            departments_to_upsert = []
+            # Prepare all departments for upsert operation - DEDUPLICATE FIRST
+            departments_dict = {}  # Use dict to automatically handle duplicates
             
             for row in valid_departments:
                 dept_code = str(row['DepartmentCode']).strip()
                 dept_name = str(row['DepartmentName']).strip()
                 
-                departments_to_upsert.append({
-                    'department_code': dept_code,
-                    'department_name': dept_name
-                })
+                # Keep the last occurrence of each department code
+                departments_dict[dept_code] = dept_name
+            
+            departments_to_upsert = [
+                {'department_code': code, 'department_name': name}
+                for code, name in departments_dict.items()
+            ]
+            
+            print(f"✅ After deduplication: {len(departments_to_upsert)} unique departments")
             
             # OPTIMIZATION: Bulk upsert all departments with conflict handling
             if departments_to_upsert:
