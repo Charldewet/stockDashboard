@@ -1,7 +1,7 @@
 {
-  "name": "TLC Dashboard",
-  "short_name": "TLC Dashboard",
-  "description": "TLC Pharmacy Dashboard Application",
+  "name": "PharmaSight",
+  "short_name": "PharmaSight",
+  "description": "PharmaSight Pharmacy Dashboard Application",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#1F2937",
