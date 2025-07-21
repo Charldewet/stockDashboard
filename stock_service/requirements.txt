@@ -7,4 +7,6 @@ python-dotenv==1.0.1
 requests==2.32.3
 Werkzeug==3.0.6
 gunicorn==23.0.0
-# PyMuPDF and pandas moved to optional requirements for faster deployment 
+pandas==2.2.3
+PyMuPDF==1.24.14
+# Added pandas and PyMuPDF for CSV/PDF processing functionality 
