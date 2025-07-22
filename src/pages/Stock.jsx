@@ -17,6 +17,8 @@ import {
   Tooltip,
   Legend
 } from 'chart.js'
+import TopMovingProductsCard from '../components/TopMovingProductsCard';
+import LowGPProductsCard from '../components/LowGPProductsCard';
 
 ChartJS.register(
   CategoryScale,
@@ -193,11 +195,9 @@ const Stock = ({ selectedDate }) => {
   });
   const [dailyStockLoading, setDailyStockLoading] = useState(false);
   const [dailyStockError, setDailyStockError] = useState(null);
-  const [gpThreshold, setGpThreshold] = useState(20);
   const [selectedDepartment, setSelectedDepartment] = useState(null);
   const [departmentLowGPProducts, setDepartmentLowGPProducts] = useState([]);
   const [departmentProductsLoading, setDepartmentProductsLoading] = useState(false);
-  const [excludePDST, setExcludePDST] = useState(false);
   const [topMovingMode, setTopMovingMode] = useState('daily'); // 'daily' or 'monthly'
 
   const formatCurrency = (amount) => {
@@ -661,7 +661,7 @@ const Stock = ({ selectedDate }) => {
           console.warn('Low stock alerts not available:', err.message);
           return { alerts: [] };
         }),
-        dailyStockAPI.getLowGPProducts(selectedPharmacy, date, gpThreshold, excludePDST).catch(err => {
+        dailyStockAPI.getLowGPProducts(selectedPharmacy, date, 25, false).catch(err => { // Removed gpThreshold and excludePDST
           console.warn('Low GP products not available:', err.message);
           return [];
         }),
@@ -723,7 +723,7 @@ const Stock = ({ selectedDate }) => {
       fetchYearlyInventoryData(selectedDate);
       fetchDailyStockData(selectedDate, topMovingMode);
     }
-  }, [selectedDate, selectedPharmacy, gpThreshold, excludePDST, topMovingMode]);
+  }, [selectedDate, selectedPharmacy, topMovingMode]);
 
   if (loading) {
     return (
@@ -982,158 +982,20 @@ const Stock = ({ selectedDate }) => {
             {/* Top Moving Products and Low GP Products Side by Side */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
               {/* Top Moving Products */}
-              <div className="card">
-                <div className="flex items-center gap-2 mb-3">
-                  <TrendingUp className="w-4 h-4 text-status-success" />
-                  <h3 className="text-sm font-semibold text-text-primary">
-                    Top Moving Products {topMovingMode === 'monthly' ? 'Month to Date' : 'Today'}
-                  </h3>
-                  <div className="ml-auto flex items-center gap-2">
-                    <div className="flex gap-1">
-                      <button
-                        className={`px-2 py-1 rounded text-xs font-medium border ${topMovingMode === 'daily' ? 'bg-accent-primary text-white border-accent-primary' : 'bg-surface-tertiary text-text-secondary border-surface-tertiary'}`}
-                        onClick={() => setTopMovingMode('daily')}
-                      >
-                        Daily
-                      </button>
-                      <button
-                        className={`px-2 py-1 rounded text-xs font-medium border ${topMovingMode === 'monthly' ? 'bg-accent-primary text-white border-accent-primary' : 'bg-surface-tertiary text-text-secondary border-surface-tertiary'}`}
-                        onClick={() => setTopMovingMode('monthly')}
-                      >
-                        Monthly
-                      </button>
-                    </div>
-                    <DownloadButton 
-                      onExport={handleExportTopMoving}
-                      disabled={!dailyStockData.topMovingProducts?.length}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2 max-h-72 overflow-y-auto">
-                  {dailyStockData.topMovingProducts?.length > 0 ? (
-                    dailyStockData.topMovingProducts.slice(0, 20).map((product, index) => (
-                      <div key={index} className="bg-surface-tertiary rounded-lg p-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <span className="text-xs font-medium text-text-secondary flex-shrink-0">#{index + 1}.</span>
-                            <div className="flex flex-col flex-1 min-w-0">
-                              <span className="text-sm font-medium text-text-primary truncate">
-                                {product.productName || `Product ${index + 1}`}
-                              </span>
-                              <span className="text-xs text-text-secondary truncate">
-                                {product.stockCode || 'N/A'}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex flex-col items-end flex-shrink-0 ml-2">
-                            <span className="text-xs text-status-success font-bold">
-                              {product.quantityMoved || 0} units
-                            </span>
-                            {product.grossProfit !== undefined && product.grossProfit !== null && product.valueMovement ? (
-                              <span className="text-xs text-text-secondary font-medium">
-                                {/* Calculate GP%: grossProfit / valueMovement * 100 */}
-                                {product.valueMovement > 0 ? `${((product.grossProfit / product.valueMovement) * 100).toFixed(1)}% GP` : '--'}
-                              </span>
-                            ) : null}
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-4">
-                      <p className="text-text-secondary text-xs">No top moving products</p>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <TopMovingProductsCard 
+                selectedDate={selectedDate}
+                selectedPharmacy={selectedPharmacy}
+                formatCurrency={formatCurrency}
+                formatDateLocal={formatDateLocal}
+              />
 
               {/* Low GP Products */}
-              <div className="card">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="w-4 h-4 text-status-error" />
-                    <h3 className="text-sm font-semibold text-text-primary">Low GP Products</h3>
-                    <span className="bg-status-error bg-opacity-20 text-status-error text-xs px-2 py-1 rounded-full">
-                      {dailyStockData.lowGPProducts?.length || 0}
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <label className="flex items-center gap-1 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={excludePDST}
-                        onChange={(e) => setExcludePDST(e.target.checked)}
-                        className="w-3 h-3 text-status-error border-surface-tertiary rounded focus:ring-status-error focus:ring-1"
-                      />
-                      <span className="text-xs text-text-secondary">Exclude SEP</span>
-                    </label>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-text-secondary">Below:</span>
-                    <select
-                      value={gpThreshold}
-                      onChange={(e) => setGpThreshold(Number(e.target.value))}
-                      className="text-xs font-medium text-status-error bg-surface-tertiary border border-surface-tertiary rounded px-2 py-1 focus:outline-none focus:border-status-error cursor-pointer"
-                    >
-                      {Array.from({ length: 16 }, (_, i) => i + 15).map(value => (
-                        <option key={value} value={value}>
-                          {value}%
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  <DownloadButton 
-                    onExport={handleExportLowGP}
-                    disabled={!dailyStockData.lowGPProducts?.length}
-                  />
-                </div>
-                <div className="space-y-2 max-h-72 overflow-y-auto">
-                  {dailyStockData.lowGPProducts?.length > 0 ? (
-                    dailyStockData.lowGPProducts.map((product, index) => {
-                      // Calculate cost price if possible
-                      let costPrice = null;
-                      if (
-                        typeof product.salesValue === 'number' &&
-                        typeof product.grossProfitPercent === 'number'
-                      ) {
-                        costPrice = product.salesValue * (1 - product.grossProfitPercent / 100);
-                      }
-                      return (
-                        <div key={index} className="bg-surface-tertiary rounded-lg p-2">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 flex-1 min-w-0">
-                              <span className="text-xs font-medium text-text-secondary flex-shrink-0">#{index + 1}.</span>
-                              <div className="flex flex-col flex-1 min-w-0">
-                                <span className="text-sm font-medium text-text-primary truncate">
-                                  {product.productName || `Product ${index + 1}`}
-                                </span>
-                                <span className="text-xs text-text-secondary truncate">
-                                  {product.stockCode || 'N/A'}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="flex flex-col items-end flex-shrink-0 ml-2">
-                              <span className="text-xs text-status-error font-bold">
-                                {typeof product.grossProfitPercent === 'number' ? `${product.grossProfitPercent.toFixed(1)}% GP` : '--'}
-                              </span>
-                              <span className="text-xs text-text-secondary font-medium mt-0.5">
-                                Cost: {costPrice !== null ? formatCurrency(costPrice) : '--'} - SP: {typeof product.salesValue === 'number' ? formatCurrency(product.salesValue) : '--'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="text-center py-4">
-                      <p className="text-text-secondary text-xs">No low GP products</p>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <LowGPProductsCard
+                selectedDate={selectedDate}
+                selectedPharmacy={selectedPharmacy}
+                formatCurrency={formatCurrency}
+                formatDateLocal={formatDateLocal}
+              />
             </div>
 
             {/* Best Sellers and Worst Sellers Side by Side */}
