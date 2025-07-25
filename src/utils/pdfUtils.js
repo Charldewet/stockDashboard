@@ -1,8 +1,4 @@
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-
-// Attach autoTable to jsPDF prototype
-jsPDF.API.autoTable = autoTable;
 
 // Test function to verify jsPDF is working
 export const testPDFGeneration = () => {
@@ -17,6 +13,53 @@ export const testPDFGeneration = () => {
     console.error('PDF test failed:', error);
     return false;
   }
+};
+
+// Simple table generator without autoTable dependency
+const createSimpleTable = (doc, data, headers, startY = 40) => {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 14;
+  const availableWidth = pageWidth - (2 * margin);
+  const colCount = headers.length;
+  const colWidth = availableWidth / colCount;
+  const rowHeight = 8;
+  
+  // Draw header
+  doc.setFillColor(31, 41, 55);
+  doc.setTextColor(249, 250, 251);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  
+  headers.forEach((header, index) => {
+    const x = margin + (index * colWidth);
+    doc.rect(x, startY, colWidth, rowHeight, 'F');
+    doc.text(header, x + 2, startY + 5);
+  });
+  
+  // Draw data rows
+  doc.setFillColor(255, 255, 255);
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  
+  data.forEach((row, rowIndex) => {
+    const y = startY + rowHeight + (rowIndex * rowHeight);
+    
+    // Alternate row colors
+    if (rowIndex % 2 === 0) {
+      doc.setFillColor(249, 250, 251);
+    } else {
+      doc.setFillColor(255, 255, 255);
+    }
+    
+    row.forEach((cell, colIndex) => {
+      const x = margin + (colIndex * colWidth);
+      doc.rect(x, y, colWidth, rowHeight, 'F');
+      doc.text(String(cell), x + 2, y + 5);
+    });
+  });
+  
+  return startY + rowHeight + (data.length * rowHeight);
 };
 
 export const generatePDF = (data, headers, title, selectedDate, formatDateLocal) => {
@@ -36,64 +79,15 @@ export const generatePDF = (data, headers, title, selectedDate, formatDateLocal)
     doc.setFont('helvetica', 'normal');
     doc.text(`Generated on: ${selectedDate.toLocaleDateString('en-ZA')}`, 14, 30);
     
-    // Calculate column widths based on content
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 14;
-    const availableWidth = pageWidth - (2 * margin);
-    
-    // Define column widths based on content type
-    let columnWidths = [];
-    if (title.includes('Top Moving Products') || title.includes('Best Sellers')) {
-      columnWidths = [15, 60, 30, 25, 20]; // Rank, Product Name, Stock Code, Quantity/Value, GP%/SOH
-    } else if (title.includes('Low GP Products')) {
-      columnWidths = [15, 50, 25, 20, 30, 30]; // Rank, Product Name, Stock Code, GP%, Cost Price, Sales Price
-    } else if (title.includes('High-Value Slow Movers')) {
-      columnWidths = [15, 50, 25, 35, 25, 20]; // Rank, Product Name, Stock Code, Value Tied Up, Avg/Day, SOH
-    } else {
-      // Default column widths
-      columnWidths = headers.map(() => availableWidth / headers.length);
-    }
-    
-    // Adjust column widths to fit page
-    const totalWidth = columnWidths.reduce((sum, width) => sum + width, 0);
-    const scale = availableWidth / totalWidth;
-    columnWidths = columnWidths.map(width => width * scale);
-    
     console.log('Creating table with data length:', data.length);
     
-    // Create table
-    doc.autoTable({
-      head: [headers],
-      body: data,
-      startY: 40,
-      margin: { top: 40, right: margin, bottom: margin, left: margin },
-      styles: {
-        fontSize: 8,
-        cellPadding: 3,
-        overflow: 'linebreak',
-        halign: 'left'
-      },
-      headStyles: {
-        fillColor: [31, 41, 55],
-        textColor: [249, 250, 251],
-        fontStyle: 'bold'
-      },
-      columnStyles: {
-        0: { halign: 'center' }, // Rank column
-        1: { cellWidth: columnWidths[1] }, // Product Name
-        2: { cellWidth: columnWidths[2] }, // Stock Code
-        3: { halign: 'right' }, // Numeric values
-        4: { halign: 'right' }, // Numeric values
-        5: { halign: 'right' }  // Numeric values
-      },
-      columnWidths: columnWidths,
-      didDrawPage: function (data) {
-        // Add page number
-        const pageCount = doc.internal.getNumberOfPages();
-        doc.setFontSize(8);
-        doc.text(`Page ${data.pageNumber} of ${pageCount}`, pageWidth - 30, pageWidth - 10);
-      }
-    });
+    // Create table using simple method
+    const tableEndY = createSimpleTable(doc, data, headers, 40);
+    
+    // Add page number
+    const pageWidth = doc.internal.pageSize.getWidth();
+    doc.setFontSize(8);
+    doc.text(`Page 1`, pageWidth - 30, pageWidth - 10);
     
     console.log('PDF generation completed successfully');
     return doc;
