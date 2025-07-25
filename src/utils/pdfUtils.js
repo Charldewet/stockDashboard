@@ -88,8 +88,14 @@ const createSimpleTable = (doc, data, headers, startY = 40) => {
       // Draw header background
       doc.rect(currentX, currentY, colWidth, headerHeight, 'F');
       
-      // Draw header text
-      doc.text(header, currentX + 2, currentY + 6);
+      // Ensure text color is set to white for header text
+      doc.setTextColor(255, 255, 255);
+      
+      // Draw header text with explicit positioning
+      const textX = currentX + 2;
+      const textY = currentY + 6;
+      console.log(`Drawing header text "${header}" at X=${textX}, Y=${textY}`);
+      doc.text(header, textX, textY);
       
       currentX += colWidth;
     });
