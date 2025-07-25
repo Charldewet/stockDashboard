@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { TrendingUp, TrendingDown, Package, AlertTriangle, DollarSign, BarChart3, Calendar, AlertCircle, ShoppingCart, Download, FileSpreadsheet } from 'lucide-react'
+import { TrendingUp, TrendingDown, Package, AlertTriangle, DollarSign, BarChart3, Calendar, AlertCircle, ShoppingCart, FileSpreadsheet } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { stockAPI, financialAPI, dailyStockAPI } from '../services/api'
 import { formatDateLocal } from '../utils/dateUtils.js'
@@ -19,6 +19,8 @@ import {
 } from 'chart.js'
 import TopMovingProductsCard from '../components/TopMovingProductsCard';
 import LowGPProductsCard from '../components/LowGPProductsCard';
+import DownloadDropdown from '../components/DownloadDropdown';
+import { generateBestSellersPDF, generateSlowMoversPDF } from '../utils/pdfUtils';
 
 ChartJS.register(
   CategoryScale,
@@ -31,21 +33,7 @@ ChartJS.register(
   Legend
 )
 
-// Download Button Component
-const DownloadButton = ({ onExport, disabled = false }) => {
-  return (
-    <button
-      onClick={onExport}
-      disabled={disabled}
-      className={`p-1 rounded hover:bg-surface-tertiary transition-colors flex items-center gap-1 ${
-        disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-      }`}
-      title="Export to CSV"
-    >
-      <Download className="w-4 h-4 text-text-secondary" />
-    </button>
-  );
-};
+
 
 // Sparkline Chart Component
 const SparklineChart = ({ data, color }) => {
@@ -290,6 +278,14 @@ const Stock = ({ selectedDate }) => {
     
     const headers = ['Rank', 'Product Name', 'Stock Code', 'Estimated Cost Value', 'Daily Avg Sales', 'Current SOH'];
     exportToCSV(data, 'high_value_slow_movers', headers);
+  };
+
+  const handleExportBestSellersPDF = () => {
+    generateBestSellersPDF(dailyStockData.bestSellers, selectedDate, formatDateLocal);
+  };
+
+  const handleExportSlowMoversPDF = () => {
+    generateSlowMoversPDF(dailyStockData.dormantStock, selectedDate, formatDateLocal, formatCurrency);
   };
 
   // Handle department bar click
@@ -1010,9 +1006,11 @@ const Stock = ({ selectedDate }) => {
                       Based on 12-month avg
                     </span>
                   </div>
-                  <DownloadButton 
-                    onExport={handleExportBestSellers}
+                  <DownloadDropdown 
+                    onExportCSV={handleExportBestSellers}
+                    onExportPDF={handleExportBestSellersPDF}
                     disabled={!dailyStockData.bestSellers?.length}
+                    title="Export Best Sellers"
                   />
                 </div>
                 <div className="space-y-2 max-h-72 overflow-y-auto">
@@ -1060,9 +1058,11 @@ const Stock = ({ selectedDate }) => {
                       R1000+ value
                     </span>
                   </div>
-                  <DownloadButton 
-                    onExport={handleExportSlowMovers}
+                  <DownloadDropdown 
+                    onExportCSV={handleExportSlowMovers}
+                    onExportPDF={handleExportSlowMoversPDF}
                     disabled={!dailyStockData.dormantStock?.length}
+                    title="Export High-Value Slow Movers"
                   />
                 </div>
                 <div className="space-y-2 max-h-72 overflow-y-auto">

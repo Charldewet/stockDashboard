@@ -1,21 +1,8 @@
 import { useState, useEffect } from 'react';
-import { DollarSign, Download } from 'lucide-react';
+import { DollarSign } from 'lucide-react';
 import { dailyStockAPI } from '../services/api';
-
-const DownloadButton = ({ onExport, disabled = false }) => {
-  return (
-    <button
-      onClick={onExport}
-      disabled={disabled}
-      className={`p-1 rounded hover:bg-surface-tertiary transition-colors flex items-center gap-1 ${
-        disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-      }`}
-      title="Export to CSV"
-    >
-      <Download className="w-4 h-4 text-text-secondary" />
-    </button>
-  );
-};
+import DownloadDropdown from './DownloadDropdown';
+import { generateLowGPProductsPDF } from '../utils/pdfUtils';
 
 function exportToCSV(data, filename, headers, selectedDate, formatDateLocal) {
   const csvContent = [
@@ -61,7 +48,7 @@ const LowGPProductsCard = ({ selectedDate, selectedPharmacy, formatCurrency, for
     fetch();
   }, [selectedDate, selectedPharmacy, gpThreshold, excludePDST, formatDateLocal]);
 
-  const handleExport = () => {
+  const handleExportCSV = () => {
     const data = products.map(product => ({
       'Rank': products.indexOf(product) + 1,
       'Product Name': product.productName || '',
@@ -73,6 +60,10 @@ const LowGPProductsCard = ({ selectedDate, selectedPharmacy, formatCurrency, for
     }));
     const headers = ['Rank', 'Product Name', 'Stock Code', 'GP%', 'Cost Price', 'Sales Price'];
     exportToCSV(data, 'low_gp_products', headers, selectedDate, formatDateLocal);
+  };
+
+  const handleExportPDF = () => {
+    generateLowGPProductsPDF(products, selectedDate, formatDateLocal, formatCurrency);
   };
 
   return (
@@ -110,9 +101,11 @@ const LowGPProductsCard = ({ selectedDate, selectedPharmacy, formatCurrency, for
             ))}
           </select>
         </div>
-        <DownloadButton 
-          onExport={handleExport}
+        <DownloadDropdown 
+          onExportCSV={handleExportCSV}
+          onExportPDF={handleExportPDF}
           disabled={!products.length}
+          title="Export Low GP Products"
         />
       </div>
       {loading ? (
