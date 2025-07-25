@@ -15,70 +15,99 @@ export const testPDFGeneration = () => {
   }
 };
 
-// Simple table generator without autoTable dependency
+// Simple table generator with pagination support
 const createSimpleTable = (doc, data, headers, startY = 40) => {
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 14;
   const availableWidth = pageWidth - (2 * margin);
   const colCount = headers.length;
   const colWidth = availableWidth / colCount;
-  const rowHeight = 10;
+  const rowHeight = 8;
+  const headerHeight = 10;
   
-  // Draw header
-  doc.setFillColor(31, 41, 55);
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
+  let currentY = startY;
+  let currentPage = 1;
+  const maxRowsPerPage = Math.floor((pageHeight - currentY - margin) / rowHeight);
   
-  headers.forEach((header, index) => {
-    const x = margin + (index * colWidth);
-    doc.rect(x, startY, colWidth, rowHeight, 'F');
-    doc.text(header, x + 2, startY + 6);
-  });
+  console.log(`Max rows per page: ${maxRowsPerPage}`);
+  console.log(`Total data rows: ${data.length}`);
   
-  // Draw data rows
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  
-  data.forEach((row, rowIndex) => {
-    const y = startY + rowHeight + (rowIndex * rowHeight);
+  // Process data in chunks for pagination
+  for (let i = 0; i < data.length; i += maxRowsPerPage) {
+    const pageData = data.slice(i, i + maxRowsPerPage);
     
-    // Alternate row colors
-    if (rowIndex % 2 === 0) {
-      doc.setFillColor(249, 250, 251);
-    } else {
-      doc.setFillColor(255, 255, 255);
+    // Add new page if not the first page
+    if (currentPage > 1) {
+      doc.addPage();
+      currentY = startY;
     }
     
-    // Draw row background
-    doc.rect(margin, y, availableWidth, rowHeight, 'F');
+    // Draw header on each page
+    doc.setFillColor(31, 41, 55);
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
     
-    // Draw cell borders and text
-    row.forEach((cell, colIndex) => {
-      const x = margin + (colIndex * colWidth);
+    headers.forEach((header, index) => {
+      const x = margin + (index * colWidth);
+      doc.rect(x, currentY, colWidth, headerHeight, 'F');
+      doc.text(header, x + 2, currentY + 6);
+    });
+    
+    currentY += headerHeight;
+    
+    // Draw data rows
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    
+    pageData.forEach((row, rowIndex) => {
+      const y = currentY + (rowIndex * rowHeight);
       
-      // Draw cell border
-      doc.setDrawColor(209, 213, 219);
-      doc.rect(x, y, colWidth, rowHeight, 'S');
-      
-      // Set text color to black for visibility
-      doc.setTextColor(0, 0, 0);
-      
-      // Truncate long text to fit in cell
-      const cellText = String(cell);
-      const maxWidth = colWidth - 4;
-      let displayText = cellText;
-      
-      // Simple text truncation
-      if (doc.getTextWidth(cellText) > maxWidth) {
-        displayText = cellText.substring(0, Math.floor(maxWidth / 3)) + '...';
+      // Alternate row colors
+      if (rowIndex % 2 === 0) {
+        doc.setFillColor(249, 250, 251);
+      } else {
+        doc.setFillColor(255, 255, 255);
       }
       
-      doc.text(displayText, x + 2, y + 6);
+      // Draw row background
+      doc.rect(margin, y, availableWidth, rowHeight, 'F');
+      
+      // Draw cell borders and text
+      row.forEach((cell, colIndex) => {
+        const x = margin + (colIndex * colWidth);
+        
+        // Draw cell border
+        doc.setDrawColor(209, 213, 219);
+        doc.rect(x, y, colWidth, rowHeight, 'S');
+        
+        // Set text color to black for visibility
+        doc.setTextColor(0, 0, 0);
+        
+        // Truncate long text to fit in cell
+        const cellText = String(cell);
+        const maxWidth = colWidth - 4;
+        let displayText = cellText;
+        
+        // Simple text truncation
+        if (doc.getTextWidth(cellText) > maxWidth) {
+          displayText = cellText.substring(0, Math.floor(maxWidth / 3)) + '...';
+        }
+        
+        doc.text(displayText, x + 2, y + 5);
+      });
     });
-  });
+    
+    // Add page number
+    doc.setFontSize(8);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`Page ${currentPage}`, pageWidth - 30, pageHeight - 10);
+    
+    currentPage++;
+  }
   
-  return startY + rowHeight + (data.length * rowHeight);
+  return currentPage - 1; // Return total number of pages
 };
 
 export const generatePDF = (data, headers, title, selectedDate, formatDateLocal) => {
@@ -102,16 +131,10 @@ export const generatePDF = (data, headers, title, selectedDate, formatDateLocal)
     
     console.log('Creating table with data length:', data.length);
     
-    // Create table using simple method
-    const tableEndY = createSimpleTable(doc, data, headers, 40);
+    // Create table using simple method with pagination
+    const totalPages = createSimpleTable(doc, data, headers, 40);
     
-    // Add page number
-    const pageWidth = doc.internal.pageSize.getWidth();
-    doc.setFontSize(8);
-    doc.setTextColor(0, 0, 0);
-    doc.text(`Page 1`, pageWidth - 30, pageWidth - 10);
-    
-    console.log('PDF generation completed successfully');
+    console.log(`PDF generation completed successfully with ${totalPages} pages`);
     return doc;
   } catch (error) {
     console.error('Error generating PDF:', error);
