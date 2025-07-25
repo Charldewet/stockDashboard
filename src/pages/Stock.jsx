@@ -20,7 +20,7 @@ import {
 import TopMovingProductsCard from '../components/TopMovingProductsCard';
 import LowGPProductsCard from '../components/LowGPProductsCard';
 import DownloadDropdown from '../components/DownloadDropdown';
-import { generateBestSellersPDF, generateSlowMoversPDF, testPDFGeneration } from '../utils/pdfUtils';
+import { generateBestSellersPDF, generateSlowMoversPDF, testPDFGeneration, testHeaderDrawing } from '../utils/pdfUtils';
 
 ChartJS.register(
   CategoryScale,
@@ -778,6 +778,12 @@ const Stock = ({ selectedDate }) => {
             className="px-3 py-1 bg-accent-primary text-white rounded text-sm hover:bg-accent-primary/90"
           >
             Test PDF
+          </button>
+          <button
+            onClick={() => testHeaderDrawing()}
+            className="px-3 py-1 bg-accent-primary text-white rounded text-sm hover:bg-accent-primary/90 ml-2"
+          >
+            Test Headers
           </button>
         </div>
       </div>

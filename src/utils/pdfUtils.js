@@ -15,6 +15,47 @@ export const testPDFGeneration = () => {
   }
 };
 
+// Test function to manually draw headers
+export const testHeaderDrawing = () => {
+  try {
+    console.log('Testing header drawing...');
+    const doc = new jsPDF('landscape', 'mm', 'a4');
+    
+    // Set up header styles
+    doc.setFillColor(31, 41, 55);
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    
+    // Draw test headers manually
+    const headers = ['Rank', 'Product Name', 'Stock Code', 'GP%', 'Cost Price', 'Sales Price'];
+    const columnWidths = [10, 50, 30, 30, 30, 30];
+    let currentX = 14;
+    const currentY = 40;
+    const headerHeight = 10;
+    
+    headers.forEach((header, index) => {
+      const colWidth = columnWidths[index];
+      console.log(`Test drawing header "${header}" at X=${currentX}, Y=${currentY}, width=${colWidth}`);
+      
+      // Draw header background
+      doc.rect(currentX, currentY, colWidth, headerHeight, 'F');
+      
+      // Draw header text
+      doc.text(header, currentX + 2, currentY + 6);
+      
+      currentX += colWidth;
+    });
+    
+    doc.save('test_headers.pdf');
+    console.log('Header test successful');
+    return true;
+  } catch (error) {
+    console.error('Header test failed:', error);
+    return false;
+  }
+};
+
 // Simple table generator with pagination support
 const createSimpleTable = (doc, data, headers, startY = 40) => {
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -74,29 +115,35 @@ const createSimpleTable = (doc, data, headers, startY = 40) => {
     
     console.log(`Drawing headers for page ${currentPage} at Y position ${currentY}`);
     
-    // Draw header on each page
+    // Draw header on each page - COMPLETELY REWRITTEN
+    let currentX = margin;
+    
+    // Set header styles once
     doc.setFillColor(31, 41, 55);
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     
-    let currentX = margin;
+    // Draw each header independently
     headers.forEach((header, index) => {
       const colWidth = columnWidths[index];
       console.log(`Drawing header "${header}" at X=${currentX}, Y=${currentY}, width=${colWidth}`);
       
-      // Draw header background
+      // Draw header background for this specific column
       doc.rect(currentX, currentY, colWidth, headerHeight, 'F');
       
-      // Ensure text color is set to white for header text
+      // Reset text color to white for this specific header
       doc.setTextColor(255, 255, 255);
       
       // Draw header text with explicit positioning
       const textX = currentX + 2;
       const textY = currentY + 6;
       console.log(`Drawing header text "${header}" at X=${textX}, Y=${textY}`);
+      
+      // Force text rendering for this header
       doc.text(header, textX, textY);
       
+      // Move to next column
       currentX += colWidth;
     });
     
