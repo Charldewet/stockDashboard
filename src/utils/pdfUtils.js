@@ -21,13 +21,7 @@ export const testHeaderDrawing = () => {
     console.log('Testing header drawing...');
     const doc = new jsPDF('landscape', 'mm', 'a4');
     
-    // Set up header styles
-    doc.setFillColor(31, 41, 55);
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    
-    // Draw test headers individually
+    // Draw test headers individually with explicit black backgrounds
     const headers = ['Rank', 'Product Name', 'Stock Code', 'GP%', 'Cost Price', 'Sales Price'];
     const columnWidths = [10, 50, 30, 30, 30, 30];
     let currentX = 14;
@@ -36,32 +30,46 @@ export const testHeaderDrawing = () => {
     
     // Draw each header individually with explicit state management
     console.log('Drawing Rank header...');
+    doc.setFillColor(0, 0, 0); // Pure black background
     doc.rect(currentX, currentY, columnWidths[0], headerHeight, 'F');
+    doc.setTextColor(255, 255, 255); // White text
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
     doc.text(headers[0], currentX + 2, currentY + 6);
     currentX += columnWidths[0];
     
     console.log('Drawing Product Name header...');
+    doc.setFillColor(0, 0, 0); // Pure black background
     doc.rect(currentX, currentY, columnWidths[1], headerHeight, 'F');
+    doc.setTextColor(255, 255, 255); // White text
     doc.text(headers[1], currentX + 2, currentY + 6);
     currentX += columnWidths[1];
     
     console.log('Drawing Stock Code header...');
+    doc.setFillColor(0, 0, 0); // Pure black background
     doc.rect(currentX, currentY, columnWidths[2], headerHeight, 'F');
+    doc.setTextColor(255, 255, 255); // White text
     doc.text(headers[2], currentX + 2, currentY + 6);
     currentX += columnWidths[2];
     
     console.log('Drawing GP% header...');
+    doc.setFillColor(0, 0, 0); // Pure black background
     doc.rect(currentX, currentY, columnWidths[3], headerHeight, 'F');
+    doc.setTextColor(255, 255, 255); // White text
     doc.text(headers[3], currentX + 2, currentY + 6);
     currentX += columnWidths[3];
     
     console.log('Drawing Cost Price header...');
+    doc.setFillColor(0, 0, 0); // Pure black background
     doc.rect(currentX, currentY, columnWidths[4], headerHeight, 'F');
+    doc.setTextColor(255, 255, 255); // White text
     doc.text(headers[4], currentX + 2, currentY + 6);
     currentX += columnWidths[4];
     
     console.log('Drawing Sales Price header...');
+    doc.setFillColor(0, 0, 0); // Pure black background
     doc.rect(currentX, currentY, columnWidths[5], headerHeight, 'F');
+    doc.setTextColor(255, 255, 255); // White text
     doc.text(headers[5], currentX + 2, currentY + 6);
     
     doc.save('test_headers.pdf');
@@ -135,48 +143,56 @@ const createSimpleTable = (doc, data, headers, startY = 40) => {
     // Draw header on each page - COMPLETELY REWRITTEN
     let currentX = margin;
     
-    // Set header styles once
-    doc.setFillColor(31, 41, 55);
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    
     // Draw each header individually with explicit state management
     console.log('Drawing headers individually...');
     
     // Draw first header (Rank)
     console.log(`Drawing header "${headers[0]}" at X=${currentX}, Y=${currentY}, width=${columnWidths[0]}`);
+    doc.setFillColor(0, 0, 0); // Pure black background
     doc.rect(currentX, currentY, columnWidths[0], headerHeight, 'F');
+    doc.setTextColor(255, 255, 255); // White text
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
     doc.text(headers[0], currentX + 2, currentY + 6);
     currentX += columnWidths[0];
     
     // Draw second header (Product Name)
     console.log(`Drawing header "${headers[1]}" at X=${currentX}, Y=${currentY}, width=${columnWidths[1]}`);
+    doc.setFillColor(0, 0, 0); // Pure black background
     doc.rect(currentX, currentY, columnWidths[1], headerHeight, 'F');
+    doc.setTextColor(255, 255, 255); // White text
     doc.text(headers[1], currentX + 2, currentY + 6);
     currentX += columnWidths[1];
     
     // Draw third header (Stock Code)
     console.log(`Drawing header "${headers[2]}" at X=${currentX}, Y=${currentY}, width=${columnWidths[2]}`);
+    doc.setFillColor(0, 0, 0); // Pure black background
     doc.rect(currentX, currentY, columnWidths[2], headerHeight, 'F');
+    doc.setTextColor(255, 255, 255); // White text
     doc.text(headers[2], currentX + 2, currentY + 6);
     currentX += columnWidths[2];
     
     // Draw fourth header (GP%)
     console.log(`Drawing header "${headers[3]}" at X=${currentX}, Y=${currentY}, width=${columnWidths[3]}`);
+    doc.setFillColor(0, 0, 0); // Pure black background
     doc.rect(currentX, currentY, columnWidths[3], headerHeight, 'F');
+    doc.setTextColor(255, 255, 255); // White text
     doc.text(headers[3], currentX + 2, currentY + 6);
     currentX += columnWidths[3];
     
     // Draw fifth header (Cost Price)
     console.log(`Drawing header "${headers[4]}" at X=${currentX}, Y=${currentY}, width=${columnWidths[4]}`);
+    doc.setFillColor(0, 0, 0); // Pure black background
     doc.rect(currentX, currentY, columnWidths[4], headerHeight, 'F');
+    doc.setTextColor(255, 255, 255); // White text
     doc.text(headers[4], currentX + 2, currentY + 6);
     currentX += columnWidths[4];
     
     // Draw sixth header (Sales Price)
     console.log(`Drawing header "${headers[5]}" at X=${currentX}, Y=${currentY}, width=${columnWidths[5]}`);
+    doc.setFillColor(0, 0, 0); // Pure black background
     doc.rect(currentX, currentY, columnWidths[5], headerHeight, 'F');
+    doc.setTextColor(255, 255, 255); // White text
     doc.text(headers[5], currentX + 2, currentY + 6);
     
     currentY += headerHeight;
