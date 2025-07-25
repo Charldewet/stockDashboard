@@ -1,5 +1,8 @@
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
+
+// Attach autoTable to jsPDF prototype
+jsPDF.API.autoTable = autoTable;
 
 // Test function to verify jsPDF is working
 export const testPDFGeneration = () => {
