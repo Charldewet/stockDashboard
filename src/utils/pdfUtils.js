@@ -22,23 +22,21 @@ const createSimpleTable = (doc, data, headers, startY = 40) => {
   const availableWidth = pageWidth - (2 * margin);
   const colCount = headers.length;
   const colWidth = availableWidth / colCount;
-  const rowHeight = 8;
+  const rowHeight = 10;
   
   // Draw header
   doc.setFillColor(31, 41, 55);
-  doc.setTextColor(249, 250, 251);
+  doc.setTextColor(255, 255, 255);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
   
   headers.forEach((header, index) => {
     const x = margin + (index * colWidth);
     doc.rect(x, startY, colWidth, rowHeight, 'F');
-    doc.text(header, x + 2, startY + 5);
+    doc.text(header, x + 2, startY + 6);
   });
   
   // Draw data rows
-  doc.setFillColor(255, 255, 255);
-  doc.setTextColor(0, 0, 0);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   
@@ -52,10 +50,31 @@ const createSimpleTable = (doc, data, headers, startY = 40) => {
       doc.setFillColor(255, 255, 255);
     }
     
+    // Draw row background
+    doc.rect(margin, y, availableWidth, rowHeight, 'F');
+    
+    // Draw cell borders and text
     row.forEach((cell, colIndex) => {
       const x = margin + (colIndex * colWidth);
-      doc.rect(x, y, colWidth, rowHeight, 'F');
-      doc.text(String(cell), x + 2, y + 5);
+      
+      // Draw cell border
+      doc.setDrawColor(209, 213, 219);
+      doc.rect(x, y, colWidth, rowHeight, 'S');
+      
+      // Set text color to black for visibility
+      doc.setTextColor(0, 0, 0);
+      
+      // Truncate long text to fit in cell
+      const cellText = String(cell);
+      const maxWidth = colWidth - 4;
+      let displayText = cellText;
+      
+      // Simple text truncation
+      if (doc.getTextWidth(cellText) > maxWidth) {
+        displayText = cellText.substring(0, Math.floor(maxWidth / 3)) + '...';
+      }
+      
+      doc.text(displayText, x + 2, y + 6);
     });
   });
   
@@ -73,10 +92,12 @@ export const generatePDF = (data, headers, title, selectedDate, formatDateLocal)
     // Set up the document
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0);
     doc.text(title, 14, 20);
     
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
+    doc.setTextColor(0, 0, 0);
     doc.text(`Generated on: ${selectedDate.toLocaleDateString('en-ZA')}`, 14, 30);
     
     console.log('Creating table with data length:', data.length);
@@ -87,6 +108,7 @@ export const generatePDF = (data, headers, title, selectedDate, formatDateLocal)
     // Add page number
     const pageWidth = doc.internal.pageSize.getWidth();
     doc.setFontSize(8);
+    doc.setTextColor(0, 0, 0);
     doc.text(`Page 1`, pageWidth - 30, pageWidth - 10);
     
     console.log('PDF generation completed successfully');
