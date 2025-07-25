@@ -252,7 +252,7 @@ const createSimpleTable = (doc, data, headers, startY = 40) => {
   return currentPage - 1; // Return total number of pages
 };
 
-export const generatePDF = (data, headers, title, selectedDate, formatDateLocal) => {
+export const generatePDF = (data, headers, title, selectedDate, formatDateLocal, pharmacyName = '') => {
   try {
     console.log('Generating PDF for:', title);
     console.log('Data:', data);
@@ -260,11 +260,14 @@ export const generatePDF = (data, headers, title, selectedDate, formatDateLocal)
     
     const doc = new jsPDF('landscape', 'mm', 'a4');
     
-    // Set up the document
+    // Set up the document with pharmacy name
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 0, 0);
-    doc.text(title, 14, 20);
+    
+    // Include pharmacy name in title if provided
+    const fullTitle = pharmacyName ? `${pharmacyName} ${title}` : title;
+    doc.text(fullTitle, 14, 20);
     
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
@@ -284,11 +287,15 @@ export const generatePDF = (data, headers, title, selectedDate, formatDateLocal)
   }
 };
 
-export const exportToPDF = (data, headers, title, selectedDate, formatDateLocal) => {
+export const exportToPDF = (data, headers, title, selectedDate, formatDateLocal, pharmacyName = '') => {
   try {
     console.log('Exporting PDF:', title);
-    const doc = generatePDF(data, headers, title, selectedDate, formatDateLocal);
-    const filename = `${title.replace(/\s+/g, '_').toLowerCase()}_${formatDateLocal(selectedDate)}.pdf`;
+    const doc = generatePDF(data, headers, title, selectedDate, formatDateLocal, pharmacyName);
+    
+    // Create filename with pharmacy name at the front
+    const pharmacyPrefix = pharmacyName ? `${pharmacyName.toLowerCase().replace(/\s+/g, '_')}_` : '';
+    const filename = `${pharmacyPrefix}${title.replace(/\s+/g, '_').toLowerCase()}_${formatDateLocal(selectedDate)}.pdf`;
+    
     console.log('Saving PDF as:', filename);
     doc.save(filename);
     console.log('PDF saved successfully');
@@ -299,7 +306,7 @@ export const exportToPDF = (data, headers, title, selectedDate, formatDateLocal)
 };
 
 // Specific PDF generators for each card type
-export const generateTopMovingProductsPDF = (products, selectedDate, formatDateLocal) => {
+export const generateTopMovingProductsPDF = (products, selectedDate, formatDateLocal, pharmacyName = '') => {
   try {
     console.log('Generating Top Moving Products PDF with', products.length, 'products');
     const data = products.map(product => [
@@ -312,14 +319,14 @@ export const generateTopMovingProductsPDF = (products, selectedDate, formatDateL
     ]);
     
     const headers = ['Rank', 'Product Name', 'Stock Code', 'Quantity Moved', 'GP%'];
-    exportToPDF(data, headers, 'Top Moving Products', selectedDate, formatDateLocal);
+    exportToPDF(data, headers, 'Top Moving Products', selectedDate, formatDateLocal, pharmacyName);
   } catch (error) {
     console.error('Error in generateTopMovingProductsPDF:', error);
     alert('Error generating Top Moving Products PDF');
   }
 };
 
-export const generateLowGPProductsPDF = (products, selectedDate, formatDateLocal, formatCurrency) => {
+export const generateLowGPProductsPDF = (products, selectedDate, formatDateLocal, formatCurrency, pharmacyName = '') => {
   try {
     console.log('Generating Low GP Products PDF with', products.length, 'products');
     const data = products.map(product => {
@@ -337,14 +344,14 @@ export const generateLowGPProductsPDF = (products, selectedDate, formatDateLocal
     });
     
     const headers = ['Rank', 'Product Name', 'Stock Code', 'GP%', 'Cost Price', 'Sales Price'];
-    exportToPDF(data, headers, 'Low GP Products', selectedDate, formatDateLocal);
+    exportToPDF(data, headers, 'Low GP Products', selectedDate, formatDateLocal, pharmacyName);
   } catch (error) {
     console.error('Error in generateLowGPProductsPDF:', error);
     alert('Error generating Low GP Products PDF');
   }
 };
 
-export const generateBestSellersPDF = (products, selectedDate, formatDateLocal) => {
+export const generateBestSellersPDF = (products, selectedDate, formatDateLocal, pharmacyName = '') => {
   try {
     console.log('Generating Best Sellers PDF with', products.length, 'products');
     const data = products.map(product => [
@@ -356,14 +363,14 @@ export const generateBestSellersPDF = (products, selectedDate, formatDateLocal) 
     ]);
     
     const headers = ['Rank', 'Product Name', 'Stock Code', 'Daily Avg Sales', 'Current SOH'];
-    exportToPDF(data, headers, 'Top 20 Best Sellers', selectedDate, formatDateLocal);
+    exportToPDF(data, headers, 'Top 20 Best Sellers', selectedDate, formatDateLocal, pharmacyName);
   } catch (error) {
     console.error('Error in generateBestSellersPDF:', error);
     alert('Error generating Best Sellers PDF');
   }
 };
 
-export const generateSlowMoversPDF = (products, selectedDate, formatDateLocal, formatCurrency) => {
+export const generateSlowMoversPDF = (products, selectedDate, formatDateLocal, formatCurrency, pharmacyName = '') => {
   try {
     console.log('Generating Slow Movers PDF with', products.length, 'products');
     const data = products.map(product => [
@@ -376,7 +383,7 @@ export const generateSlowMoversPDF = (products, selectedDate, formatDateLocal, f
     ]);
     
     const headers = ['Rank', 'Product Name', 'Stock Code', 'Estimated Cost Value', 'Daily Avg Sales', 'Current SOH'];
-    exportToPDF(data, headers, 'High-Value Slow Movers', selectedDate, formatDateLocal);
+    exportToPDF(data, headers, 'High-Value Slow Movers', selectedDate, formatDateLocal, pharmacyName);
   } catch (error) {
     console.error('Error in generateSlowMoversPDF:', error);
     alert('Error generating Slow Movers PDF');

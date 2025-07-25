@@ -63,7 +63,7 @@ const LowGPProductsCard = ({ selectedDate, selectedPharmacy, formatCurrency, for
   };
 
   const handleExportPDF = () => {
-    generateLowGPProductsPDF(products, selectedDate, formatDateLocal, formatCurrency);
+    generateLowGPProductsPDF(products, selectedDate, formatDateLocal, formatCurrency, selectedPharmacy);
   };
 
   return (

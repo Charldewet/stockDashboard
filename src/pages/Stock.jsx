@@ -281,11 +281,11 @@ const Stock = ({ selectedDate }) => {
   };
 
   const handleExportBestSellersPDF = () => {
-    generateBestSellersPDF(dailyStockData.bestSellers, selectedDate, formatDateLocal);
+    generateBestSellersPDF(dailyStockData.bestSellers, selectedDate, formatDateLocal, selectedPharmacy);
   };
 
   const handleExportSlowMoversPDF = () => {
-    generateSlowMoversPDF(dailyStockData.dormantStock, selectedDate, formatDateLocal, formatCurrency);
+    generateSlowMoversPDF(dailyStockData.dormantStock, selectedDate, formatDateLocal, formatCurrency, selectedPharmacy);
   };
 
   // Handle department bar click

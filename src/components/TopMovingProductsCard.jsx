@@ -69,7 +69,7 @@ const TopMovingProductsCard = ({ selectedDate, selectedPharmacy, formatCurrency,
   };
 
   const handleExportPDF = () => {
-    generateTopMovingProductsPDF(products, selectedDate, formatDateLocal);
+    generateTopMovingProductsPDF(products, selectedDate, formatDateLocal, selectedPharmacy);
   };
 
   return (
