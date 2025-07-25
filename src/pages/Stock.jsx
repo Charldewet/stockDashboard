@@ -20,7 +20,7 @@ import {
 import TopMovingProductsCard from '../components/TopMovingProductsCard';
 import LowGPProductsCard from '../components/LowGPProductsCard';
 import DownloadDropdown from '../components/DownloadDropdown';
-import { generateBestSellersPDF, generateSlowMoversPDF } from '../utils/pdfUtils';
+import { generateBestSellersPDF, generateSlowMoversPDF, testPDFGeneration } from '../utils/pdfUtils';
 
 ChartJS.register(
   CategoryScale,
@@ -773,6 +773,12 @@ const Stock = ({ selectedDate }) => {
           {selectedDate?.toLocaleDateString('en-ZA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
         </p>
           </div>
+          <button
+            onClick={() => testPDFGeneration()}
+            className="px-3 py-1 bg-accent-primary text-white rounded text-sm hover:bg-accent-primary/90"
+          >
+            Test PDF
+          </button>
         </div>
       </div>
 
