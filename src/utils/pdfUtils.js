@@ -22,9 +22,34 @@ const createSimpleTable = (doc, data, headers, startY = 40) => {
   const margin = 14;
   const availableWidth = pageWidth - (2 * margin);
   const colCount = headers.length;
-  const colWidth = availableWidth / colCount;
   const rowHeight = 8;
   const headerHeight = 10;
+  
+  // Calculate column widths
+  let columnWidths = [];
+  if (colCount >= 2) {
+    // First column (Rank) = 10mm (1cm)
+    const rankWidth = 10;
+    // Second column (Product Name) = double the remaining average width
+    const remainingWidth = availableWidth - rankWidth;
+    const averageRemainingWidth = remainingWidth / (colCount - 1);
+    const productNameWidth = averageRemainingWidth * 2;
+    const otherColumnsWidth = (remainingWidth - productNameWidth) / (colCount - 2);
+    
+    columnWidths = [rankWidth];
+    for (let i = 1; i < colCount; i++) {
+      if (i === 1) {
+        columnWidths.push(productNameWidth);
+      } else {
+        columnWidths.push(otherColumnsWidth);
+      }
+    }
+  } else {
+    // Fallback for single column
+    columnWidths = [availableWidth];
+  }
+  
+  console.log('Column widths:', columnWidths);
   
   let currentY = startY;
   let currentPage = 1;
@@ -49,10 +74,12 @@ const createSimpleTable = (doc, data, headers, startY = 40) => {
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     
+    let currentX = margin;
     headers.forEach((header, index) => {
-      const x = margin + (index * colWidth);
-      doc.rect(x, currentY, colWidth, headerHeight, 'F');
-      doc.text(header, x + 2, currentY + 6);
+      const colWidth = columnWidths[index];
+      doc.rect(currentX, currentY, colWidth, headerHeight, 'F');
+      doc.text(header, currentX + 2, currentY + 6);
+      currentX += colWidth;
     });
     
     currentY += headerHeight;
@@ -75,12 +102,13 @@ const createSimpleTable = (doc, data, headers, startY = 40) => {
       doc.rect(margin, y, availableWidth, rowHeight, 'F');
       
       // Draw cell borders and text
+      let cellX = margin;
       row.forEach((cell, colIndex) => {
-        const x = margin + (colIndex * colWidth);
+        const colWidth = columnWidths[colIndex];
         
         // Draw cell border
         doc.setDrawColor(209, 213, 219);
-        doc.rect(x, y, colWidth, rowHeight, 'S');
+        doc.rect(cellX, y, colWidth, rowHeight, 'S');
         
         // Set text color to black for visibility
         doc.setTextColor(0, 0, 0);
@@ -95,7 +123,8 @@ const createSimpleTable = (doc, data, headers, startY = 40) => {
           displayText = cellText.substring(0, Math.floor(maxWidth / 3)) + '...';
         }
         
-        doc.text(displayText, x + 2, y + 5);
+        doc.text(displayText, cellX + 2, y + 5);
+        cellX += colWidth;
       });
     });
     
