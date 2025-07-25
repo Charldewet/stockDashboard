@@ -25,6 +25,9 @@ const createSimpleTable = (doc, data, headers, startY = 40) => {
   const rowHeight = 8;
   const headerHeight = 10;
   
+  console.log('Creating table with headers:', headers);
+  console.log('Available width:', availableWidth);
+  
   // Calculate column widths
   let columnWidths = [];
   if (colCount >= 2) {
@@ -50,6 +53,7 @@ const createSimpleTable = (doc, data, headers, startY = 40) => {
   }
   
   console.log('Column widths:', columnWidths);
+  console.log('Total column width:', columnWidths.reduce((sum, width) => sum + width, 0));
   
   let currentY = startY;
   let currentPage = 1;
@@ -68,6 +72,8 @@ const createSimpleTable = (doc, data, headers, startY = 40) => {
       currentY = startY;
     }
     
+    console.log(`Drawing headers for page ${currentPage} at Y position ${currentY}`);
+    
     // Draw header on each page
     doc.setFillColor(31, 41, 55);
     doc.setTextColor(255, 255, 255);
@@ -77,8 +83,14 @@ const createSimpleTable = (doc, data, headers, startY = 40) => {
     let currentX = margin;
     headers.forEach((header, index) => {
       const colWidth = columnWidths[index];
+      console.log(`Drawing header "${header}" at X=${currentX}, Y=${currentY}, width=${colWidth}`);
+      
+      // Draw header background
       doc.rect(currentX, currentY, colWidth, headerHeight, 'F');
+      
+      // Draw header text
       doc.text(header, currentX + 2, currentY + 6);
+      
       currentX += colWidth;
     });
     
