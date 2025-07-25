@@ -27,25 +27,42 @@ export const testHeaderDrawing = () => {
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     
-    // Draw test headers manually
+    // Draw test headers individually
     const headers = ['Rank', 'Product Name', 'Stock Code', 'GP%', 'Cost Price', 'Sales Price'];
     const columnWidths = [10, 50, 30, 30, 30, 30];
     let currentX = 14;
     const currentY = 40;
     const headerHeight = 10;
     
-    headers.forEach((header, index) => {
-      const colWidth = columnWidths[index];
-      console.log(`Test drawing header "${header}" at X=${currentX}, Y=${currentY}, width=${colWidth}`);
-      
-      // Draw header background
-      doc.rect(currentX, currentY, colWidth, headerHeight, 'F');
-      
-      // Draw header text
-      doc.text(header, currentX + 2, currentY + 6);
-      
-      currentX += colWidth;
-    });
+    // Draw each header individually with explicit state management
+    console.log('Drawing Rank header...');
+    doc.rect(currentX, currentY, columnWidths[0], headerHeight, 'F');
+    doc.text(headers[0], currentX + 2, currentY + 6);
+    currentX += columnWidths[0];
+    
+    console.log('Drawing Product Name header...');
+    doc.rect(currentX, currentY, columnWidths[1], headerHeight, 'F');
+    doc.text(headers[1], currentX + 2, currentY + 6);
+    currentX += columnWidths[1];
+    
+    console.log('Drawing Stock Code header...');
+    doc.rect(currentX, currentY, columnWidths[2], headerHeight, 'F');
+    doc.text(headers[2], currentX + 2, currentY + 6);
+    currentX += columnWidths[2];
+    
+    console.log('Drawing GP% header...');
+    doc.rect(currentX, currentY, columnWidths[3], headerHeight, 'F');
+    doc.text(headers[3], currentX + 2, currentY + 6);
+    currentX += columnWidths[3];
+    
+    console.log('Drawing Cost Price header...');
+    doc.rect(currentX, currentY, columnWidths[4], headerHeight, 'F');
+    doc.text(headers[4], currentX + 2, currentY + 6);
+    currentX += columnWidths[4];
+    
+    console.log('Drawing Sales Price header...');
+    doc.rect(currentX, currentY, columnWidths[5], headerHeight, 'F');
+    doc.text(headers[5], currentX + 2, currentY + 6);
     
     doc.save('test_headers.pdf');
     console.log('Header test successful');
@@ -124,28 +141,43 @@ const createSimpleTable = (doc, data, headers, startY = 40) => {
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     
-    // Draw each header independently
-    headers.forEach((header, index) => {
-      const colWidth = columnWidths[index];
-      console.log(`Drawing header "${header}" at X=${currentX}, Y=${currentY}, width=${colWidth}`);
-      
-      // Draw header background for this specific column
-      doc.rect(currentX, currentY, colWidth, headerHeight, 'F');
-      
-      // Reset text color to white for this specific header
-      doc.setTextColor(255, 255, 255);
-      
-      // Draw header text with explicit positioning
-      const textX = currentX + 2;
-      const textY = currentY + 6;
-      console.log(`Drawing header text "${header}" at X=${textX}, Y=${textY}`);
-      
-      // Force text rendering for this header
-      doc.text(header, textX, textY);
-      
-      // Move to next column
-      currentX += colWidth;
-    });
+    // Draw each header individually with explicit state management
+    console.log('Drawing headers individually...');
+    
+    // Draw first header (Rank)
+    console.log(`Drawing header "${headers[0]}" at X=${currentX}, Y=${currentY}, width=${columnWidths[0]}`);
+    doc.rect(currentX, currentY, columnWidths[0], headerHeight, 'F');
+    doc.text(headers[0], currentX + 2, currentY + 6);
+    currentX += columnWidths[0];
+    
+    // Draw second header (Product Name)
+    console.log(`Drawing header "${headers[1]}" at X=${currentX}, Y=${currentY}, width=${columnWidths[1]}`);
+    doc.rect(currentX, currentY, columnWidths[1], headerHeight, 'F');
+    doc.text(headers[1], currentX + 2, currentY + 6);
+    currentX += columnWidths[1];
+    
+    // Draw third header (Stock Code)
+    console.log(`Drawing header "${headers[2]}" at X=${currentX}, Y=${currentY}, width=${columnWidths[2]}`);
+    doc.rect(currentX, currentY, columnWidths[2], headerHeight, 'F');
+    doc.text(headers[2], currentX + 2, currentY + 6);
+    currentX += columnWidths[2];
+    
+    // Draw fourth header (GP%)
+    console.log(`Drawing header "${headers[3]}" at X=${currentX}, Y=${currentY}, width=${columnWidths[3]}`);
+    doc.rect(currentX, currentY, columnWidths[3], headerHeight, 'F');
+    doc.text(headers[3], currentX + 2, currentY + 6);
+    currentX += columnWidths[3];
+    
+    // Draw fifth header (Cost Price)
+    console.log(`Drawing header "${headers[4]}" at X=${currentX}, Y=${currentY}, width=${columnWidths[4]}`);
+    doc.rect(currentX, currentY, columnWidths[4], headerHeight, 'F');
+    doc.text(headers[4], currentX + 2, currentY + 6);
+    currentX += columnWidths[4];
+    
+    // Draw sixth header (Sales Price)
+    console.log(`Drawing header "${headers[5]}" at X=${currentX}, Y=${currentY}, width=${columnWidths[5]}`);
+    doc.rect(currentX, currentY, columnWidths[5], headerHeight, 'F');
+    doc.text(headers[5], currentX + 2, currentY + 6);
     
     currentY += headerHeight;
     
