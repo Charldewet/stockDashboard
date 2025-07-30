@@ -981,31 +981,30 @@ class AnalyticsService:
         except Exception as e:
             print(f"❌ Error getting slowest sellers: {str(e)}")
             print(traceback.format_exc())
-            return {'products': []}
+            return {'products': []} 
 
     @staticmethod
-    def get_stock_levels_with_days(pharmacy_id, target_date, min_days_threshold=7):
-        """Get all products with stock levels and days of stock on hand, filtered by minimum days threshold"""
+    def get_stock_levels_with_days(pharmacy_id, min_days_threshold=7):
+        """Get all products with stock levels and filter by minimum days of stock"""
         try:
-            if isinstance(target_date, str):
-                target_date = datetime.strptime(target_date, '%Y-%m-%d').date()
+            from sqlalchemy import asc, desc
             
             # Normalize pharmacy_id to uppercase for consistency
             pharmacy_id = pharmacy_id.upper()
-            print(f"🔍 Getting stock levels with days for pharmacy: {pharmacy_id}, min_days: {min_days_threshold}")
             
-            # Use the same baseline data approach as the working overstock alerts function
+            # Get all products with their current stock levels and sales data
+            # We'll use the baseline data (12-month aggregated sales) to calculate daily averages
             baseline_marker_date = '1900-01-01'
             
-            # Get current stock levels and baseline sales data - include ALL products with stock
             stock_levels = db.session.query(
                 Product.stock_code,
                 Product.description,
                 Department.department_name,
-                DailySales.on_hand,
+                Department.department_code,
                 DailySales.sales_qty,
                 DailySales.sales_value,
-                DailySales.gross_profit
+                DailySales.gross_profit,
+                DailySales.on_hand
             ).select_from(Product).join(
                 DailySales, Product.id == DailySales.product_id
             ).join(
@@ -1014,49 +1013,46 @@ class AnalyticsService:
                 and_(
                     Product.pharmacy_id == pharmacy_id,
                     DailySales.sale_date == baseline_marker_date,
-                    DailySales.on_hand >= 1  # Has stock on hand (same as overstock alerts)
+                    DailySales.on_hand > 0  # Has stock on hand
                 )
             ).all()
             
-            print(f"🔍 Found {len(stock_levels)} products with stock on hand")
-            
             products = []
             for product in stock_levels:
-                current_stock = float(product.on_hand or 0)
-                
-                # Calculate daily average sales from 12-month baseline
-                total_sales_12_months = float(product.sales_qty or 0)
-                daily_avg_sales = total_sales_12_months / 365 if total_sales_12_months > 0 else 0
+                # Calculate daily average sales from 12-month total
+                daily_avg_sales = float(product.sales_qty) / 365 if float(product.sales_qty) > 0 else 0
                 
                 # Calculate days of stock on hand
-                days_of_stock = float('inf') if daily_avg_sales == 0 else current_stock / daily_avg_sales
+                current_soh = float(product.on_hand or 0)
+                days_of_stock = current_soh / daily_avg_sales if daily_avg_sales > 0 else float('inf')
                 
                 # Only include products that meet the minimum days threshold
                 if days_of_stock >= min_days_threshold:
-                    # Calculate GP percentage
-                    sales_value = float(product.sales_value or 0)
-                    gross_profit = float(product.gross_profit or 0)
-                    gp_percentage = (gross_profit / sales_value * 100) if sales_value > 0 else 0
+                    # Calculate cost per unit
+                    cost_per_unit = 0
+                    if float(product.sales_qty) > 0 and float(product.sales_value) > 0:
+                        cost_per_unit = (float(product.sales_value) - float(product.gross_profit)) / float(product.sales_qty)
                     
                     products.append({
                         'productName': product.description,
                         'stockCode': product.stock_code,
                         'departmentName': product.department_name,
-                        'currentSOH': current_stock,
-                        'daysOfStock': round(days_of_stock, 1),
+                        'departmentCode': product.department_code,
+                        'currentSOH': current_soh,
                         'dailyAvgSales': round(daily_avg_sales, 3),
-                        'totalSales12Months': total_sales_12_months,
-                        'salesValue12Months': sales_value,
-                        'grossProfitPercent': round(gp_percentage, 1)
+                        'daysOfStock': round(days_of_stock, 1),
+                        'totalSales12Months': float(product.sales_qty),
+                        'totalValue12Months': float(product.sales_value),
+                        'grossProfit12Months': float(product.gross_profit),
+                        'costPerUnit': round(cost_per_unit, 2)
                     })
             
-            # Sort by days of stock (highest first)
+            # Sort by days of stock (highest first) to show overstocked items first
             products.sort(key=lambda x: x['daysOfStock'], reverse=True)
             
-            print(f"✅ Found {len(products)} products with {min_days_threshold}+ days of stock")
             return {'products': products}
             
         except Exception as e:
-            print(f"❌ Error getting stock levels with days: {str(e)}")
+            print(f"❌ Error getting stock levels: {str(e)}")
             print(traceback.format_exc())
             return {'products': []} 

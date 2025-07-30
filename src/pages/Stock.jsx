@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { TrendingUp, TrendingDown, Package, AlertTriangle, DollarSign, BarChart3, Calendar, AlertCircle, ShoppingCart, FileSpreadsheet } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { stockAPI, financialAPI, dailyStockAPI } from '../services/api'
+import { stockAPI, financialAPI, dailyStockAPI, turnoverAPI } from '../services/api'
 import { formatDateLocal } from '../utils/dateUtils.js'
 import OrderingSuggestions from '../components/OrderingSuggestions'
 import OverstockAlerts from '../components/OverstockAlerts';
@@ -19,8 +19,8 @@ import {
 } from 'chart.js'
 import TopMovingProductsCard from '../components/TopMovingProductsCard';
 import LowGPProductsCard from '../components/LowGPProductsCard';
-import DownloadDropdown from '../components/DownloadDropdown';
 import StockLevelsCard from '../components/StockLevelsCard';
+import DownloadDropdown from '../components/DownloadDropdown';
 import { generateBestSellersPDF, generateSlowMoversPDF } from '../utils/pdfUtils';
 
 ChartJS.register(
@@ -188,6 +188,15 @@ const Stock = ({ selectedDate }) => {
   const [departmentLowGPProducts, setDepartmentLowGPProducts] = useState([]);
   const [departmentProductsLoading, setDepartmentProductsLoading] = useState(false);
   const [topMovingMode, setTopMovingMode] = useState('daily'); // 'daily' or 'monthly'
+  
+  // Monthly Budget Progress State
+  const [monthlyBudgetData, setMonthlyBudgetData] = useState({
+    averageMonthlySales: 0,
+    monthlyBudget: 0,
+    currentMonthPurchases: 0,
+    budgetProgress: 0,
+    budgetProgressPercentage: 0
+  });
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-ZA', {
@@ -619,6 +628,101 @@ const Stock = ({ selectedDate }) => {
     }
   };
 
+  const fetchMonthlyBudgetProgress = async (dateObj) => {
+    try {
+      console.log('📊 Fetching monthly budget progress data for:', dateObj);
+      
+      // Calculate the last 6 months date range
+      const endDate = new Date(dateObj.getFullYear(), dateObj.getMonth(), 1); // Start of current month
+      const startDate = new Date(dateObj.getFullYear(), dateObj.getMonth() - 6, 1); // 6 months ago
+      
+      const startDateStr = formatDateLocal(startDate);
+      const endDateStr = formatDateLocal(endDate);
+      
+      console.log('📅 Monthly budget date range:', { startDateStr, endDateStr });
+      
+      // Fetch turnover data for the last 6 months
+      const turnoverData = await turnoverAPI.getDailyTurnoverForRange(
+        selectedPharmacy,
+        startDateStr,
+        endDateStr
+      );
+      
+      console.log('📊 Received 6 months turnover data:', turnoverData);
+      
+      // Calculate monthly sales totals for the last 6 months
+      const monthlySales = {};
+      
+      if (turnoverData.daily_turnover) {
+        turnoverData.daily_turnover.forEach(day => {
+          const date = new Date(day.date);
+          const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+          monthlySales[yearMonth] = (monthlySales[yearMonth] || 0) + (day.turnover || 0);
+        });
+      }
+      
+      console.log('📈 Monthly sales breakdown:', monthlySales);
+      
+      // Calculate average monthly sales
+      const monthlySalesValues = Object.values(monthlySales);
+      const averageMonthlySales = monthlySalesValues.length > 0 
+        ? monthlySalesValues.reduce((sum, sales) => sum + sales, 0) / monthlySalesValues.length 
+        : 0;
+      
+      // Calculate monthly budget (75% of average monthly sales)
+      const monthlyBudget = averageMonthlySales * 0.75;
+      
+      // Get current month purchases using the exact same method as the Monthly Purchases card
+      const currentMonthStart = new Date(dateObj.getFullYear(), dateObj.getMonth(), 1);
+      const currentMonthEnd = dateObj;
+      const currentMonthStartStr = formatDateLocal(currentMonthStart);
+      const currentMonthEndStr = formatDateLocal(currentMonthEnd);
+      
+      const monthlyPurchasesData = await financialAPI.getCostsForRange(
+        selectedPharmacy,
+        currentMonthStartStr,
+        currentMonthEndStr
+      );
+      
+      const currentMonthPurchases = monthlyPurchasesData.purchases || 0;
+      
+      console.log('🔍 Monthly purchases calculation:', {
+        startDate: currentMonthStartStr,
+        endDate: currentMonthEndStr,
+        purchasesData: monthlyPurchasesData,
+        currentMonthPurchases
+      });
+      
+      // Calculate budget progress percentage
+      const budgetProgressPercentage = monthlyBudget > 0 ? (currentMonthPurchases / monthlyBudget) * 100 : 0;
+      
+      console.log('💰 Monthly budget calculations:', {
+        averageMonthlySales,
+        monthlyBudget,
+        currentMonthPurchases,
+        budgetProgressPercentage
+      });
+      
+      setMonthlyBudgetData({
+        averageMonthlySales,
+        monthlyBudget,
+        currentMonthPurchases,
+        budgetProgress: currentMonthPurchases,
+        budgetProgressPercentage: Math.min(budgetProgressPercentage, 100) // Cap at 100%
+      });
+      
+    } catch (err) {
+      console.error('Error fetching monthly budget progress:', err);
+      setMonthlyBudgetData({
+        averageMonthlySales: 0,
+        monthlyBudget: 0,
+        currentMonthPurchases: 0,
+        budgetProgress: 0,
+        budgetProgressPercentage: 0
+      });
+    }
+  };
+
   const fetchDailyStockData = async (dateObj, mode = topMovingMode) => {
     setDailyStockLoading(true);
     setDailyStockError(null);
@@ -721,6 +825,19 @@ const Stock = ({ selectedDate }) => {
       fetchDailyStockData(selectedDate, topMovingMode);
     }
   }, [selectedDate, selectedPharmacy, topMovingMode]);
+
+  // Separate useEffect to run budget calculation
+  useEffect(() => {
+    console.log('🔍 Budget calculation trigger:', {
+      selectedDate,
+      selectedPharmacy,
+      shouldRun: selectedDate && selectedPharmacy
+    });
+    
+    if (selectedDate && selectedPharmacy) {
+      fetchMonthlyBudgetProgress(selectedDate);
+    }
+  }, [selectedDate, selectedPharmacy]);
 
   if (loading) {
     return (
@@ -875,6 +992,8 @@ const Stock = ({ selectedDate }) => {
         </div>
       </div>
 
+
+
       {/* Insights & Alerts Section */}
       <div className="mb-4">
           <div className="card">
@@ -949,6 +1068,172 @@ const Stock = ({ selectedDate }) => {
             </div>
           </div>
         </div>
+
+      {/* Inventory Value Trend Chart */}
+      <div className="mb-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="card h-[300px]">
+            <h2 className="text-xl font-semibold text-text-primary mb-2">Inventory Value Trend</h2>
+            <div className="h-[240px] p-3" style={{position: 'relative'}}>
+              {yearlyInventory.dates.length > 0 ? (
+                <Line
+                  key={yearlyInventory.dates.join(',')}
+                  data={{
+                    labels: yearlyInventory.dates,
+                    datasets: [
+                      {
+                        label: 'Inventory Value',
+                        data: yearlyInventory.values,
+                        borderColor: '#E24313',
+                        backgroundColor: 'transparent',
+                        borderWidth: 3,
+                        fill: false,
+                        tension: 0.4,
+                        pointBackgroundColor: '#E24313',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 0,
+                        pointRadius: 0,
+                        pointHoverRadius: 0,
+                      }
+                    ]
+                  }}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                      legend: {
+                        display: false,
+                        position: 'top',
+                        labels: {
+                          color: '#6B7280',
+                          usePointStyle: true,
+                          pointStyle: 'circle',
+                          padding: 20,
+                          font: {
+                            size: 12
+                          }
+                        }
+                      },
+                      tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#ffffff',
+                        borderColor: '#E24313',
+                        borderWidth: 1,
+                        callbacks: {
+                          label: function(context) {
+                            return `Inventory Value: ${formatCurrency(context.parsed.y)}`;
+                          }
+                        }
+                      }
+                    },
+                    scales: {
+                      x: {
+                        grid: {
+                          display: false
+                        },
+                        ticks: {
+                          color: '#ffffff',
+                          font: {
+                            size: 11
+                          }
+                        }
+                      },
+                      y: {
+                        grid: {
+                          display: false
+                        },
+                        ticks: {
+                          color: '#ffffff',
+                          font: {
+                            size: 11
+                          },
+                          callback: function(value) {
+                            if (value >= 1000000) {
+                              return `R${(value / 1000000).toFixed(1)}M`;
+                            } else if (value >= 1000) {
+                              return `R${(value / 1000).toFixed(0)}k`;
+                            } else {
+                              return `R${value.toFixed(0)}`;
+                            }
+                          }
+                        }
+                      }
+                    },
+                    interaction: {
+                      mode: 'nearest',
+                      axis: 'x',
+                      intersect: false
+                    }
+                  }}
+                />
+              ) : (
+                <div className="h-full flex items-center justify-center">
+                  <p className="text-text-secondary">Loading inventory data...</p>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="card h-[300px]">
+            <h2 className="text-xl font-semibold text-text-primary mb-2">Monthly Budget Progress</h2>
+                        <div className="h-[240px] p-3 flex items-center justify-between">
+              {/* Progress Pie Chart - Center */}
+              <div className="flex-1 flex justify-center items-center">
+                <div className="relative w-44 h-44">
+                  <svg width="100%" height="100%" viewBox="0 0 100 100" className="transform -rotate-90">
+                    {/* Background circle */}
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="40"
+                      fill="none"
+                      stroke="#374151"
+                      strokeWidth="6"
+                    />
+                    {/* Progress arc with solid purple color */}
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="40"
+                      fill="none"
+                      stroke="#7f60e6"
+                      strokeWidth="15"
+                      strokeLinecap="round"
+                      strokeDasharray={`${2 * Math.PI * 40}`}
+                      strokeDashoffset={`${2 * Math.PI * 40 * (1 - monthlyBudgetData.budgetProgressPercentage / 100)}`}
+                    />
+                  </svg>
+                  {/* Percentage text */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-3xl font-bold text-primary">
+                      {monthlyBudgetData.budgetProgressPercentage.toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Budget Labels - Right Side */}
+              <div className="flex flex-col justify-center space-y-3">
+                <div className="text-right">
+                  <p className="text-text-secondary text-sm font-medium">Budget</p>
+                  <p className="text-text-primary text-lg font-bold">
+                    {formatCurrency(monthlyBudgetData.monthlyBudget)}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-text-secondary text-sm font-medium">Used</p>
+                  <p className="text-text-primary text-lg font-bold">
+                    {formatCurrency(monthlyBudgetData.currentMonthPurchases)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Daily Stock Information Section (from Second Database) */}
       <div className="mb-4">
@@ -1338,6 +1623,16 @@ const Stock = ({ selectedDate }) => {
         </div>
       )}
 
+      {/* Stock Levels */}
+      <div className="mb-4">
+        <StockLevelsCard 
+          selectedDate={selectedDate} 
+          selectedPharmacy={selectedPharmacy}
+          formatCurrency={formatCurrency}
+          formatNumber={formatNumber}
+        />
+      </div>
+
       {/* Ordering Suggestions */}
       <div className="mb-4">
         <OrderingSuggestions 
@@ -1356,15 +1651,6 @@ const Stock = ({ selectedDate }) => {
         />
       </div>
 
-      {/* Stock Levels Card */}
-      <div className="mb-4">
-        <StockLevelsCard 
-          selectedDate={selectedDate}
-          selectedPharmacy={selectedPharmacy}
-          formatCurrency={formatCurrency}
-          formatNumber={formatNumber}
-        />
-      </div>
 
 
     </div>

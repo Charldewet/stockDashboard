@@ -302,18 +302,21 @@ const OverstockAlerts = ({ selectedDate, formatCurrency, formatNumber }) => {
   if (overstockItems.length === 0) {
     return (
       <div className="card">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-xl font-semibold text-text-primary">Overstock Alerts</h2>
-            <p className="text-xs text-text-secondary">12-month analysis • Slow movers</p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+          <div className="flex items-center gap-2">
+            <TrendingDown className="w-4 h-4 text-blue-600" />
+            <h3 className="text-xl font-semibold text-text-primary">Overstock Alerts</h3>
           </div>
           <div className="flex items-center gap-2">
-            <TrendingDown className="w-5 h-5 text-blue-600" />
             <DownloadButton 
               onExport={handleExportOverstockAlerts}
               disabled={true}
             />
           </div>
+        </div>
+        
+        <div className="mb-4">
+          <p className="text-xs text-text-secondary">12-month analysis • Slow movers</p>
         </div>
         <div className="text-center py-8">
           <div className="w-16 h-16 bg-status-success bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -339,20 +342,24 @@ const OverstockAlerts = ({ selectedDate, formatCurrency, formatNumber }) => {
 
   return (
     <div className="card">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h2 className="text-xl font-semibold text-text-primary">Overstock Alerts</h2>
-          <p className="text-xs text-text-secondary">
-            12-month analysis • Slow movers • {totalItems} products • {formatCurrency(totalValue)} tied up
-          </p>
-        </div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
         <div className="flex items-center gap-2">
-          <TrendingDown className="w-5 h-5 text-blue-600" />
+          <TrendingDown className="w-4 h-4 text-blue-600" />
+          <h3 className="text-xl font-semibold text-text-primary">Overstock Alerts</h3>
+        </div>
+        
+        <div className="flex items-center gap-2">
           <DownloadButton 
             onExport={handleExportOverstockAlerts}
             disabled={!overstockItems?.length}
           />
         </div>
+      </div>
+      
+      <div className="mb-4">
+        <p className="text-xs text-text-secondary">
+          12-month analysis • Slow movers • {totalItems} products • {formatCurrency(totalValue)} tied up
+        </p>
       </div>
 
       {/* High Priority Summary */}

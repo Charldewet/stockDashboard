@@ -59,60 +59,27 @@ const createSimpleTable = (doc, data, headers, startY = 40) => {
     
     console.log(`Drawing headers for page ${currentPage} at Y position ${currentY}`);
     
-    // Draw header on each page - COMPLETELY REWRITTEN
+    // Draw header on each page - DYNAMIC VERSION
     let currentX = margin;
     
     // Draw each header individually with explicit state management
     console.log('Drawing headers individually...');
     
-    // Draw first header (Rank)
-    console.log(`Drawing header "${headers[0]}" at X=${currentX}, Y=${currentY}, width=${columnWidths[0]}`);
+    // Set up header styling
     doc.setFillColor(0, 0, 0); // Pure black background
-    doc.rect(currentX, currentY, columnWidths[0], headerHeight, 'F');
     doc.setTextColor(255, 255, 255); // White text
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    doc.text(headers[0], currentX + 2, currentY + 6);
-    currentX += columnWidths[0];
     
-    // Draw second header (Product Name)
-    console.log(`Drawing header "${headers[1]}" at X=${currentX}, Y=${currentY}, width=${columnWidths[1]}`);
-    doc.setFillColor(0, 0, 0); // Pure black background
-    doc.rect(currentX, currentY, columnWidths[1], headerHeight, 'F');
-    doc.setTextColor(255, 255, 255); // White text
-    doc.text(headers[1], currentX + 2, currentY + 6);
-    currentX += columnWidths[1];
-    
-    // Draw third header (Stock Code)
-    console.log(`Drawing header "${headers[2]}" at X=${currentX}, Y=${currentY}, width=${columnWidths[2]}`);
-    doc.setFillColor(0, 0, 0); // Pure black background
-    doc.rect(currentX, currentY, columnWidths[2], headerHeight, 'F');
-    doc.setTextColor(255, 255, 255); // White text
-    doc.text(headers[2], currentX + 2, currentY + 6);
-    currentX += columnWidths[2];
-    
-    // Draw fourth header (GP%)
-    console.log(`Drawing header "${headers[3]}" at X=${currentX}, Y=${currentY}, width=${columnWidths[3]}`);
-    doc.setFillColor(0, 0, 0); // Pure black background
-    doc.rect(currentX, currentY, columnWidths[3], headerHeight, 'F');
-    doc.setTextColor(255, 255, 255); // White text
-    doc.text(headers[3], currentX + 2, currentY + 6);
-    currentX += columnWidths[3];
-    
-    // Draw fifth header (Cost Price)
-    console.log(`Drawing header "${headers[4]}" at X=${currentX}, Y=${currentY}, width=${columnWidths[4]}`);
-    doc.setFillColor(0, 0, 0); // Pure black background
-    doc.rect(currentX, currentY, columnWidths[4], headerHeight, 'F');
-    doc.setTextColor(255, 255, 255); // White text
-    doc.text(headers[4], currentX + 2, currentY + 6);
-    currentX += columnWidths[4];
-    
-    // Draw sixth header (Sales Price)
-    console.log(`Drawing header "${headers[5]}" at X=${currentX}, Y=${currentY}, width=${columnWidths[5]}`);
-    doc.setFillColor(0, 0, 0); // Pure black background
-    doc.rect(currentX, currentY, columnWidths[5], headerHeight, 'F');
-    doc.setTextColor(255, 255, 255); // White text
-    doc.text(headers[5], currentX + 2, currentY + 6);
+    // Draw all headers dynamically
+    headers.forEach((header, index) => {
+      console.log(`Drawing header "${header}" at X=${currentX}, Y=${currentY}, width=${columnWidths[index]}`);
+      doc.setFillColor(0, 0, 0); // Pure black background
+      doc.rect(currentX, currentY, columnWidths[index], headerHeight, 'F');
+      doc.setTextColor(255, 255, 255); // White text
+      doc.text(header, currentX + 2, currentY + 6);
+      currentX += columnWidths[index];
+    });
     
     currentY += headerHeight;
     
@@ -306,5 +273,27 @@ export const generateSlowMoversPDF = (products, selectedDate, formatDateLocal, f
   } catch (error) {
     console.error('Error in generateSlowMoversPDF:', error);
     alert('Error generating Slow Movers PDF');
+  }
+};
+
+export const generateStockLevelsPDF = (products, selectedDate, pharmacyName = '', formatCurrency, formatNumber) => {
+  try {
+    console.log('Generating Stock Levels PDF with', products.length, 'products');
+    const data = products.map(product => [
+      products.indexOf(product) + 1,
+      product.productName || '',
+      product.stockCode || '',
+      product.departmentName || '',
+      formatNumber(product.currentSOH || 0),
+      product.dailyAvgSales?.toFixed(3) || 0,
+      product.daysOfStock?.toFixed(1) || 0,
+      product.costPerUnit ? formatCurrency(product.costPerUnit * product.currentSOH) : 'N/A'
+    ]);
+    
+    const headers = ['Rank', 'Product Name', 'Stock Code', 'Department', 'Current SOH', 'Daily Avg Sales', 'Days of Stock', 'Stock Value'];
+    exportToPDF(data, headers, 'Stock Levels', selectedDate, (date) => date.toISOString().split('T')[0], pharmacyName);
+  } catch (error) {
+    console.error('Error in generateStockLevelsPDF:', error);
+    alert('Error generating Stock Levels PDF');
   }
 }; 

@@ -310,18 +310,21 @@ const OrderingSuggestions = ({ selectedDate, formatCurrency, formatNumber }) => 
   if (!orderingData.recommendations || orderingData.recommendations.length === 0) {
     return (
       <div className="card">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-xl font-semibold text-text-primary">Ordering Suggestions</h2>
-            <p className="text-xs text-text-secondary">12-month analysis • SOH-based recommendations</p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-accent-primary" />
+            <h3 className="text-xl font-semibold text-text-primary">Ordering Suggestions</h3>
           </div>
           <div className="flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-accent-primary" />
             <DownloadButton 
               onExport={handleExportOrderingSuggestions}
               disabled={true}
             />
           </div>
+        </div>
+        
+        <div className="mb-4">
+          <p className="text-xs text-text-secondary">12-month analysis • SOH-based recommendations</p>
         </div>
         <div className="text-center py-8">
           <div className="w-16 h-16 bg-status-success bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -339,20 +342,24 @@ const OrderingSuggestions = ({ selectedDate, formatCurrency, formatNumber }) => 
 
   return (
     <div className="card">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h2 className="text-xl font-semibold text-text-primary">Ordering Suggestions</h2>
-          <p className="text-xs text-text-secondary">
-            12-month analysis • SOH-based • {totalRecommendations} products • {urgentCount} urgent
-          </p>
-        </div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
         <div className="flex items-center gap-2">
-          <TrendingUp className="w-5 h-5 text-accent-primary" />
+          <TrendingUp className="w-4 h-4 text-accent-primary" />
+          <h3 className="text-xl font-semibold text-text-primary">Ordering Suggestions</h3>
+        </div>
+        
+        <div className="flex items-center gap-2">
           <DownloadButton 
             onExport={handleExportOrderingSuggestions}
             disabled={!orderingData.recommendations?.length}
           />
         </div>
+      </div>
+      
+      <div className="mb-4">
+        <p className="text-xs text-text-secondary">
+          12-month analysis • SOH-based • {totalRecommendations} products • {urgentCount} urgent
+        </p>
       </div>
 
       {/* Urgent Summary */}

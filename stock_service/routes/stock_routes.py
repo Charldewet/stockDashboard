@@ -143,12 +143,12 @@ def get_dormant_stock_with_value(pharmacy_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@stock_bp.route('/stock_levels_with_days/<pharmacy_id>/<date>', methods=['GET'])
-def get_stock_levels_with_days(pharmacy_id, date):
-    """Get all products with stock levels and days of stock on hand, filtered by minimum days threshold"""
+@stock_bp.route('/stock_levels/<pharmacy_id>', methods=['GET'])
+def get_stock_levels_with_days(pharmacy_id):
+    """Get all products with stock levels filtered by minimum days of stock"""
     try:
         min_days_threshold = request.args.get('min_days', 7, type=int)
-        products = AnalyticsService.get_stock_levels_with_days(pharmacy_id, date, min_days_threshold)
+        products = AnalyticsService.get_stock_levels_with_days(pharmacy_id, min_days_threshold)
         return jsonify(products), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
