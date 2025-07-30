@@ -992,11 +992,12 @@ class AnalyticsService:
             
             # Normalize pharmacy_id to uppercase for consistency
             pharmacy_id = pharmacy_id.upper()
+            print(f"🔍 Getting stock levels with days for pharmacy: {pharmacy_id}, min_days: {min_days_threshold}")
             
-            # Get baseline data (12-month aggregated sales) for daily average calculation
+            # Use the same baseline data approach as the working overstock alerts function
             baseline_marker_date = '1900-01-01'
             
-            # Get current stock levels and baseline sales data
+            # Get current stock levels and baseline sales data - include ALL products with stock
             stock_levels = db.session.query(
                 Product.stock_code,
                 Product.description,
@@ -1013,9 +1014,11 @@ class AnalyticsService:
                 and_(
                     Product.pharmacy_id == pharmacy_id,
                     DailySales.sale_date == baseline_marker_date,
-                    DailySales.on_hand > 0  # Has stock on hand
+                    DailySales.on_hand >= 1  # Has stock on hand (same as overstock alerts)
                 )
             ).all()
+            
+            print(f"🔍 Found {len(stock_levels)} products with stock on hand")
             
             products = []
             for product in stock_levels:
@@ -1050,6 +1053,7 @@ class AnalyticsService:
             # Sort by days of stock (highest first)
             products.sort(key=lambda x: x['daysOfStock'], reverse=True)
             
+            print(f"✅ Found {len(products)} products with {min_days_threshold}+ days of stock")
             return {'products': products}
             
         except Exception as e:
