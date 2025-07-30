@@ -20,6 +20,7 @@ import {
 import TopMovingProductsCard from '../components/TopMovingProductsCard';
 import LowGPProductsCard from '../components/LowGPProductsCard';
 import DownloadDropdown from '../components/DownloadDropdown';
+import StockLevelsCard from '../components/StockLevelsCard';
 import { generateBestSellersPDF, generateSlowMoversPDF } from '../utils/pdfUtils';
 
 ChartJS.register(
@@ -1355,6 +1356,15 @@ const Stock = ({ selectedDate }) => {
         />
       </div>
 
+      {/* Stock Levels Card */}
+      <div className="mb-4">
+        <StockLevelsCard 
+          selectedDate={selectedDate}
+          selectedPharmacy={selectedPharmacy}
+          formatCurrency={formatCurrency}
+          formatNumber={formatNumber}
+        />
+      </div>
 
 
     </div>

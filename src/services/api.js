@@ -472,6 +472,14 @@ export const dailyStockAPI = {
       params: { analysis_days: analysisDays }
     })
     return response.data
+  },
+
+  // Get stock levels with days of stock on hand
+  getStockLevelsWithDays: async (pharmacy, date, minDays = 7) => {
+    const response = await dailyStockApi.get(`/stock_levels_with_days/${pharmacy}/${date}`, {
+      params: { min_days: minDays }
+    })
+    return response.data
   }
 }
 

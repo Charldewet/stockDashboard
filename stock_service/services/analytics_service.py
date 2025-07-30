@@ -981,4 +981,78 @@ class AnalyticsService:
         except Exception as e:
             print(f"❌ Error getting slowest sellers: {str(e)}")
             print(traceback.format_exc())
+            return {'products': []}
+
+    @staticmethod
+    def get_stock_levels_with_days(pharmacy_id, target_date, min_days_threshold=7):
+        """Get all products with stock levels and days of stock on hand, filtered by minimum days threshold"""
+        try:
+            if isinstance(target_date, str):
+                target_date = datetime.strptime(target_date, '%Y-%m-%d').date()
+            
+            # Normalize pharmacy_id to uppercase for consistency
+            pharmacy_id = pharmacy_id.upper()
+            
+            # Get baseline data (12-month aggregated sales) for daily average calculation
+            baseline_marker_date = '1900-01-01'
+            
+            # Get current stock levels and baseline sales data
+            stock_levels = db.session.query(
+                Product.stock_code,
+                Product.description,
+                Department.department_name,
+                DailySales.on_hand,
+                DailySales.sales_qty,
+                DailySales.sales_value,
+                DailySales.gross_profit
+            ).select_from(Product).join(
+                DailySales, Product.id == DailySales.product_id
+            ).join(
+                Department, Product.department_code == Department.department_code
+            ).filter(
+                and_(
+                    Product.pharmacy_id == pharmacy_id,
+                    DailySales.sale_date == baseline_marker_date,
+                    DailySales.on_hand > 0  # Has stock on hand
+                )
+            ).all()
+            
+            products = []
+            for product in stock_levels:
+                current_stock = float(product.on_hand or 0)
+                
+                # Calculate daily average sales from 12-month baseline
+                total_sales_12_months = float(product.sales_qty or 0)
+                daily_avg_sales = total_sales_12_months / 365 if total_sales_12_months > 0 else 0
+                
+                # Calculate days of stock on hand
+                days_of_stock = float('inf') if daily_avg_sales == 0 else current_stock / daily_avg_sales
+                
+                # Only include products that meet the minimum days threshold
+                if days_of_stock >= min_days_threshold:
+                    # Calculate GP percentage
+                    sales_value = float(product.sales_value or 0)
+                    gross_profit = float(product.gross_profit or 0)
+                    gp_percentage = (gross_profit / sales_value * 100) if sales_value > 0 else 0
+                    
+                    products.append({
+                        'productName': product.description,
+                        'stockCode': product.stock_code,
+                        'departmentName': product.department_name,
+                        'currentSOH': current_stock,
+                        'daysOfStock': round(days_of_stock, 1),
+                        'dailyAvgSales': round(daily_avg_sales, 3),
+                        'totalSales12Months': total_sales_12_months,
+                        'salesValue12Months': sales_value,
+                        'grossProfitPercent': round(gp_percentage, 1)
+                    })
+            
+            # Sort by days of stock (highest first)
+            products.sort(key=lambda x: x['daysOfStock'], reverse=True)
+            
+            return {'products': products}
+            
+        except Exception as e:
+            print(f"❌ Error getting stock levels with days: {str(e)}")
+            print(traceback.format_exc())
             return {'products': []} 
