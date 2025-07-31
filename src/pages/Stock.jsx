@@ -708,7 +708,7 @@ const Stock = ({ selectedDate }) => {
         monthlyBudget,
         currentMonthPurchases,
         budgetProgress: currentMonthPurchases,
-        budgetProgressPercentage: Math.min(budgetProgressPercentage, 100) // Cap at 100%
+        budgetProgressPercentage: budgetProgressPercentage // Remove the cap to allow values above 100%
       });
       
     } catch (err) {
@@ -1193,22 +1193,35 @@ const Stock = ({ selectedDate }) => {
                       stroke="#374151"
                       strokeWidth="6"
                     />
-                    {/* Progress arc with solid purple color */}
+                    {/* Progress arc - handle values above 100% */}
                     <circle
                       cx="50"
                       cy="50"
                       r="40"
                       fill="none"
-                      stroke="#7f60e6"
+                      stroke={monthlyBudgetData.budgetProgressPercentage > 100 ? "#dd524c" : "#7f60e6"}
                       strokeWidth="15"
                       strokeLinecap="round"
                       strokeDasharray={`${2 * Math.PI * 40}`}
-                      strokeDashoffset={`${2 * Math.PI * 40 * (1 - monthlyBudgetData.budgetProgressPercentage / 100)}`}
+                      strokeDashoffset={`${2 * Math.PI * 40 * (1 - Math.min(monthlyBudgetData.budgetProgressPercentage, 100) / 100)}`}
                     />
+                    {/* Additional indicator for values above 100% - pulsing ring */}
+                    {monthlyBudgetData.budgetProgressPercentage > 100 && (
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="45"
+                        fill="none"
+                        stroke="#dd524c"
+                        strokeWidth="2"
+                        strokeDasharray="5,5"
+                        opacity="0.6"
+                      />
+                    )}
                   </svg>
                   {/* Percentage text */}
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-3xl font-bold text-primary">
+                    <span className={`text-3xl font-bold ${monthlyBudgetData.budgetProgressPercentage > 100 ? 'text-status-error' : 'text-primary'}`}>
                       {monthlyBudgetData.budgetProgressPercentage.toFixed(1)}%
                     </span>
                   </div>
