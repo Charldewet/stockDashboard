@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View } from 'react-native';
+import { View, AppState } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -249,7 +249,7 @@ const AppNavigator = () => {
             addNotification({
               id: `lowgp-${last.notification.request.identifier}-${code}`,
               title: 'TLC PharmaSight - Low GP Alert',
-              body: `${lowGPItems.length} items below ${threshold}% GP`,
+              body: `Low GP products for ${name}`,
               data,
               createdAt: Date.now(),
               read: false,
@@ -329,9 +329,65 @@ const AppNavigator = () => {
       } catch {}
     });
 
+    // Check for any missed notifications when app becomes active
+    const checkMissedNotifications = async () => {
+      try {
+        const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+        const now = Date.now();
+        
+        // Check for notifications that should have been received recently
+        for (const notification of scheduled) {
+          const trigger = notification.trigger as any;
+          if (trigger && trigger.date) {
+            const scheduledTime = new Date(trigger.date).getTime();
+            const timeDiff = now - scheduledTime;
+            
+            // If notification was scheduled for more than 1 minute ago but less than 24 hours ago
+            if (timeDiff > 60000 && timeDiff < 86400000) {
+              const data: any = notification.content.data || {};
+              const type = data?.type;
+              
+              if (type === 'DAILY_SUMMARY' || type === 'LOW_GP_ALERT') {
+                const code = String(data?.pharmacyCode || '');
+                const name = String(data?.pharmacyName || 'Pharmacy');
+                const title = type === 'DAILY_SUMMARY' ? 'TLC PharmaSight' : 'TLC PharmaSight - Low GP Alert';
+                const body = type === 'DAILY_SUMMARY' ? `Daily Summary for ${name}` : `Low GP products for ${name}`;
+                
+                // Add to alerts tab if not already present
+                addNotification({
+                  id: `${type === 'DAILY_SUMMARY' ? 'daily' : 'lowgp'}-${notification.identifier}-${code}`,
+                  title,
+                  body,
+                  data,
+                  createdAt: scheduledTime,
+                  read: false,
+                });
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to check missed notifications:', error);
+      }
+    };
+
+    // Check for missed notifications when app becomes active
+    checkMissedNotifications();
+
+    // Listen for app state changes to check missed notifications
+    const handleAppStateChange = (nextAppState: string) => {
+      if (nextAppState === 'active') {
+        // App became active, check for missed notifications
+        checkMissedNotifications();
+      }
+    };
+
+    const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
+
     return () => {
       responseSub.remove();
       receivedSub.remove();
+      appStateSubscription?.remove();
     };
   }, []);
 

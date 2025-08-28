@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, SafeAreaView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Bell, TrendingUp, AlertTriangle } from 'lucide-react-native';
+import { Bell, TrendingUp, AlertTriangle, RefreshCw } from 'lucide-react-native';
 import { useNotifications, InAppNotification } from '../../contexts/NotificationsContext';
 
 const colors = {
@@ -31,7 +31,15 @@ const colors = {
 
 const NotificationsTabScreen = () => {
   const navigation = useNavigation<any>();
-  const { notifications, markAsReadAndRemove } = useNotifications();
+  const { notifications, markAsReadAndRemove, checkMissedNotifications } = useNotifications();
+
+  const handleRefresh = async () => {
+    try {
+      await checkMissedNotifications();
+    } catch (error) {
+      console.warn('Failed to refresh notifications:', error);
+    }
+  };
 
   const handlePress = (item: InAppNotification) => {
     const type = item?.data?.type;
@@ -126,7 +134,12 @@ const NotificationsTabScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Alerts</Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.headerTitle}>Alerts</Text>
+          <TouchableOpacity onPress={handleRefresh} style={styles.refreshButton}>
+            <RefreshCw size={20} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
         <Text style={styles.headerSubtitle}>{notifications.length} unseen notification{notifications.length !== 1 ? 's' : ''}</Text>
       </View>
       
@@ -136,6 +149,8 @@ const NotificationsTabScreen = () => {
         renderItem={renderItem}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+        refreshing={false}
+        onRefresh={handleRefresh}
       />
     </SafeAreaView>
   );
@@ -153,11 +168,19 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: colors.textPrimary,
-    marginBottom: 4,
+  },
+  refreshButton: {
+    padding: 8,
   },
   headerSubtitle: {
     fontSize: 14,

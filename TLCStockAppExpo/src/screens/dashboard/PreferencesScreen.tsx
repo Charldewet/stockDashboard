@@ -129,7 +129,9 @@ const PreferencesScreen = () => {
     let scheduledCount = 0;
     for (const pharmacy of selected) {
       try {
+        const notificationId = `daily-summary-${pharmacy.code}-${Date.now()}`;
         const id = await Notifications.scheduleNotificationAsync({
+          identifier: notificationId,
           content: {
             title: 'TLC PharmaSight',
             body: `Daily Summary for ${pharmacy.name}`,
@@ -285,8 +287,9 @@ const PreferencesScreen = () => {
           alertTime.setHours(alertHours, alertMinutes, 0, 0);
           if (alertTime <= now) { alertTime.setDate(alertTime.getDate() + 1); }
 
-
+          const notificationId = `low-gp-alert-${pharmacy.code}-${Date.now()}`;
           const id = await Notifications.scheduleNotificationAsync({
+            identifier: notificationId,
             content: {
               title: 'TLC PharmaSight - Low GP Alert',
               body: body,

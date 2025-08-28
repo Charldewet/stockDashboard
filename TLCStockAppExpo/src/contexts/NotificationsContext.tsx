@@ -16,6 +16,7 @@ interface NotificationsContextValue {
   addNotification: (n: InAppNotification) => void;
   markAsReadAndRemove: (id: string) => void;
   clearAll: () => void;
+  checkMissedNotifications: () => Promise<void>;
 }
 
 const NotificationsContext = createContext<NotificationsContextValue | undefined>(undefined);
@@ -51,6 +52,48 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
 
   const clearAll = () => setNotifications([]);
 
+  const checkMissedNotifications = async () => {
+    try {
+      const Notifications = require('expo-notifications');
+      const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+      const now = Date.now();
+      
+      // Check for notifications that should have been received recently
+      for (const notification of scheduled) {
+        const trigger = notification.trigger as any;
+        if (trigger && trigger.date) {
+          const scheduledTime = new Date(trigger.date).getTime();
+          const timeDiff = now - scheduledTime;
+          
+          // If notification was scheduled for more than 1 minute ago but less than 24 hours ago
+          if (timeDiff > 60000 && timeDiff < 86400000) {
+            const data: any = notification.content.data || {};
+            const type = data?.type;
+            
+            if (type === 'DAILY_SUMMARY' || type === 'LOW_GP_ALERT') {
+              const code = String(data?.pharmacyCode || '');
+              const name = String(data?.pharmacyName || 'Pharmacy');
+              const title = type === 'DAILY_SUMMARY' ? 'TLC PharmaSight' : 'TLC PharmaSight - Low GP Alert';
+              const body = type === 'DAILY_SUMMARY' ? `Daily Summary for ${name}` : `Low GP products for ${name}`;
+              
+              // Add to alerts tab if not already present
+              addNotification({
+                id: `${type === 'DAILY_SUMMARY' ? 'daily' : 'lowgp'}-${notification.identifier}-${code}`,
+                title,
+                body,
+                data,
+                createdAt: scheduledTime,
+                read: false,
+              });
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to check missed notifications:', error);
+    }
+  };
+
   const unreadCount = useMemo(() => notifications.length, [notifications]);
 
   const value: NotificationsContextValue = {
@@ -59,6 +102,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
     addNotification,
     markAsReadAndRemove,
     clearAll,
+    checkMissedNotifications,
   };
 
   return (
