@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TLC Dashboard</title>
+    <link rel="icon" type="image/png" href="/logo/icon.png" />
+    <meta name="theme-color" content="#1F2937" />
+    <script>
+        // Store the current path and redirect to the main app
+        // The React app can then read this and navigate to the correct route
+        sessionStorage.setItem('redirectPath', window.location.pathname + window.location.search);
+        window.location.replace('/');
+    </script>
+</head>
+<body style="margin: 0; padding: 20px; font-family: system-ui, -apple-system, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; min-height: 100vh; display: flex; align-items: center; justify-content: center;">
+    <div style="text-align: center;">
+        <div style="animation: spin 1s linear infinite; width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.3); border-top: 3px solid white; border-radius: 50%; margin: 0 auto 20px;"></div>
+        <p>Redirecting to Dashboard...</p>
+    </div>
+    <style>
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</body>
+</html> 

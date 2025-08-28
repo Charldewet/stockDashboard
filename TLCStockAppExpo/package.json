@@ -1,0 +1,78 @@
+{
+  "name": "tlc-pharmasight",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "description": "TLC PharmaSight - Comprehensive pharmacy analytics dashboard for TLC pharmacies",
+  "author": "TLC Pharmacy",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tlcpharmacy/pharmasight-mobile"
+  },
+  "keywords": [
+    "pharmacy",
+    "analytics",
+    "dashboard",
+    "healthcare",
+    "business",
+    "metrics",
+    "TLC",
+    "react-native",
+    "expo"
+  ],
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "build:ios": "expo build:ios",
+    "build:android": "expo build:android",
+    "eject": "expo eject",
+    "test-type-r": "node scripts/test-type-r-regex.js"
+  },
+  "dependencies": {
+    "@expo/metro-runtime": "~5.0.4",
+    "@react-native-async-storage/async-storage": "2.1.2",
+    "@react-native-community/datetimepicker": "8.4.1",
+    "@react-navigation/bottom-tabs": "^7.4.4",
+    "@react-navigation/native": "^7.1.16",
+    "@react-navigation/stack": "^7.4.4",
+    "@shopify/react-native-skia": "v2.0.0-next.4",
+    "axios": "^1.11.0",
+    "expo": "~53.0.20",
+    "expo-background-fetch": "^13.1.6",
+    "expo-blur": "~14.1.5",
+    "expo-constants": "~17.1.7",
+    "expo-device": "~7.1.4",
+    "expo-linear-gradient": "~14.1.5",
+    "expo-notifications": "~0.31.4",
+    "expo-print": "~14.1.4",
+    "expo-secure-store": "^14.2.3",
+    "expo-sharing": "~13.1.5",
+    "expo-status-bar": "~2.2.3",
+    "expo-task-manager": "^13.1.6",
+    "lucide-react-native": "^0.535.0",
+    "react": "19.0.0",
+    "react-native": "0.79.5",
+    "react-native-gesture-handler": "~2.24.0",
+    "react-native-linear-gradient": "^2.8.3",
+    "react-native-paper": "^5.14.5",
+    "react-native-reanimated": "~3.17.4",
+    "react-native-safe-area-context": "5.4.0",
+    "react-native-screens": "~4.11.1",
+    "react-native-svg": "15.11.2",
+    "react-native-web": "^0.20.0",
+    "victory-native": "^41.18.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "@types/react": "~19.0.10",
+    "pdf-parse": "^1.1.1",
+    "typescript": "~5.8.3"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=14.0.0",
+    "npm": ">=6.0.0"
+  }
+}
