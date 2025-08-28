@@ -16,7 +16,6 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.TLCStockAppExpo",
       "icon": "./assets/app_logo.png",
-      "buildNumber": "8",
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": false,
