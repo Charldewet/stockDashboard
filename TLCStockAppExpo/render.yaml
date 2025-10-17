@@ -4,11 +4,13 @@ services:
     env: node
     region: oregon
     plan: free
-    buildCommand: npm ci --legacy-peer-deps || npm install --legacy-peer-deps && npm run render:build
-    startCommand: npm run render:start
+    buildCommand: npm install && npm run render:build
+    startCommand: node server.js
     envVars:
       - key: NODE_VERSION
         value: 18.20.5
       - key: NODE_ENV
         value: production
+      - key: PORT
+        value: 10000
 
