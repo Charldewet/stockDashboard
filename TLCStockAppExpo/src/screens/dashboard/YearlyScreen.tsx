@@ -20,44 +20,15 @@ import { newPharmacyAPI } from '../../services/api';
 import { getPharmacyByCode } from '../../config/api';
 import { formatDateLocal, getYesterday, formatDateDisplay } from '../../utils/dateUtils';
 import { formatCurrency, formatPercentage, calculatePercentageChange } from '../../utils/formatUtils';
-import { TrendingUp, TrendingDown, AlertCircle, ChevronDown, Calendar, CheckCircle, AlertTriangle, Menu, LogOut, User, Bell, Shield, Settings, DollarSign, ShoppingCart, ShoppingBasket, BarChart3, ChevronRight } from 'lucide-react-native';
+import { TrendingUp, TrendingDown, AlertCircle, ChevronDown, Calendar, CheckCircle, AlertTriangle, Menu, LogOut, User, Bell, Shield, Settings, DollarSign, ShoppingCart, ShoppingBasket, BarChart3, ChevronRight, Moon, Sun } from 'lucide-react-native';
+import { useNotifications } from '../../contexts/NotificationsContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import CustomDatePicker from '../../components/common/CustomDatePicker';
 import DateScroller from '../../components/common/DateScroller';
 
 const { width } = Dimensions.get('window');
 
-// Color scheme matching web app
-const colors = {
-  // Background gradients
-  bgGradientFrom: '#111827',
-  bgGradientTo: '#0F172A',
-  
-  // Surface colors
-  surfacePrimary: '#1F2937',
-  surfaceSecondary: '#111827',
-  
-  // Text colors
-  textPrimary: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-  
-  // Accent colors
-  accentPrimary: '#FF4500',
-  accentPrimaryHover: '#E63E00',
-  accentPrimaryFocus: '#FFA500',
-  
-  // Status colors
-  statusSuccess: '#10B981',
-  statusWarning: '#F59E0B',
-  statusError: '#EF4444',
-  
-  // Chart colors
-  chartGold: '#FFD600',
-  chartCoquelicot: '#FF4509',
-  costSales: '#A0FC4E',
-  
-  // Border colors
-  border: '#374151',
-};
+const useColors = () => useTheme().colors;
 
 interface YearlyData {
   turnover: number;
@@ -211,6 +182,26 @@ const getAlerts = (data: YearlyData, previousYearData: YearlyData | null) => {
     }
   }
 
+  // 4b. Purchases vs Sales - highlight high purchasing relative to sales
+  if (data.turnover > 0 && data.purchases > 0) {
+    const purchasesVsSales = (data.purchases / data.turnover) * 100;
+    if (purchasesVsSales > 90) {
+      alerts.push({
+        severity: 'critical',
+        icon: AlertCircle,
+        title: 'Purchases vs Sales Too High',
+        description: `${purchasesVsSales.toFixed(1)}% of turnover spent on purchases`
+      });
+    } else if (purchasesVsSales > 75) {
+      alerts.push({
+        severity: 'warning',
+        icon: AlertTriangle,
+        title: 'High Purchases vs Sales',
+        description: `${purchasesVsSales.toFixed(1)}% of turnover spent on purchases`
+      });
+    }
+  }
+
   // 5. Scripts Alert - only show if we have turnover data (indicating business activity)
   if (data.scriptsDispensed === 0 && data.turnover > 0) {
     alerts.push({
@@ -227,6 +218,7 @@ const getAlerts = (data: YearlyData, previousYearData: YearlyData | null) => {
 const YearlyScreen = () => {
   const navigation = useNavigation<AuthNavigationProp>();
   const { selectedPharmacy, pharmacies, setSelectedPharmacy, selectedDate, setSelectedDate, logout } = useAuth();
+  const { colors, themeMode, toggleTheme } = useTheme();
   const [tempSelectedDate, setTempSelectedDate] = useState(selectedDate);
   
   // Data states
@@ -248,6 +240,7 @@ const YearlyScreen = () => {
   const [costOfSalesCardExpanded, setCostOfSalesCardExpanded] = useState(false);
   const [basketCardExpanded, setBasketCardExpanded] = useState(false);
   const [scriptsCardExpanded, setScriptsCardExpanded] = useState(false);
+  const { unreadCount } = useNotifications();
 
   const handlePharmacyChange = (pharmacyCode: string) => {
     setSelectedPharmacy(pharmacyCode);
@@ -511,6 +504,7 @@ const YearlyScreen = () => {
 
   const handleDateFromScroller = (d: Date) => setSelectedDate(d);
 
+  const styles = getStyles(colors);
   return (
     <View style={styles.container}>
       {loading && (
@@ -537,13 +531,25 @@ const YearlyScreen = () => {
             </TouchableOpacity>
           </View>
 
-          {/* Right side: Calendar Icon */}
-          <TouchableOpacity 
-            style={styles.dateButton} 
-            onPress={handleDatePickerOpen}
-          >
-            <Calendar size={20} color={colors.textSecondary} />
-          </TouchableOpacity>
+          {/* Right side: Calendar and Theme Toggle */}
+          <View style={styles.headerRightRow}>
+            <TouchableOpacity 
+              style={styles.iconButton}
+              onPress={handleDatePickerOpen}
+            >
+              <Calendar size={20} color={colors.textPrimary} />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.iconButton}
+              onPress={toggleTheme}
+            >
+              {themeMode === 'dark' ? (
+                <Sun size={20} color={colors.textPrimary} />
+              ) : (
+                <Moon size={20} color={colors.textPrimary} />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -605,6 +611,20 @@ const YearlyScreen = () => {
               >
                 <Settings size={20} color={colors.textPrimary} />
                 <Text style={styles.hamburgerMenuItemText}>Preferences</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.hamburgerMenuItem}
+                onPress={() => toggleTheme()}
+              >
+                {themeMode === 'dark' ? (
+                  <Sun size={20} color={colors.textPrimary} />
+                ) : (
+                  <Moon size={20} color={colors.textPrimary} />
+                )}
+                <Text style={styles.hamburgerMenuItemText}>
+                  {themeMode === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                </Text>
               </TouchableOpacity>
             </View>
             
@@ -822,6 +842,19 @@ const YearlyScreen = () => {
                     <View style={styles.costOfSalesDetailRow}>
                       <Text style={styles.costOfSalesDetailLabel}>Purchases</Text>
                       <Text style={styles.costOfSalesDetailValue}>{backgroundLoading ? '...' : formatCurrency(yearlyData.purchases)}</Text>
+                    </View>
+                    <View style={styles.costOfSalesSeparator} />
+                    <View style={styles.costOfSalesSubDetailRow}>
+                      <Text style={styles.costOfSalesSubDetailLabel}>% Purchases vs Sales</Text>
+                      <Text style={[styles.costOfSalesSubDetailValue, { color: (!backgroundLoading && yearlyData && yearlyData.turnover > 0 && (yearlyData.purchases / yearlyData.turnover * 100) > 90) ? colors.statusError : (!backgroundLoading && yearlyData && yearlyData.turnover > 0 && (yearlyData.purchases / yearlyData.turnover * 100) > 75) ? colors.statusWarning : colors.textPrimary }]}>
+                        {backgroundLoading ? '...' : ((yearlyData.turnover > 0 ? (yearlyData.purchases / yearlyData.turnover) * 100 : 0).toFixed(1) + '%')}
+                      </Text>
+                    </View>
+                    <View style={styles.costOfSalesSubDetailRow}>
+                      <Text style={styles.costOfSalesSubDetailLabel}>% Purchases vs CoS</Text>
+                      <Text style={[styles.costOfSalesSubDetailValue, { color: (!backgroundLoading && yearlyData && yearlyData.costOfSales > 0 && (yearlyData.purchases / yearlyData.costOfSales * 100) > 100) ? colors.statusError : (!backgroundLoading && yearlyData && yearlyData.costOfSales > 0 && (yearlyData.purchases / yearlyData.costOfSales * 100) > 90) ? colors.statusWarning : colors.textPrimary }]}>
+                        {backgroundLoading ? '...' : ((yearlyData.costOfSales > 0 ? (yearlyData.purchases / yearlyData.costOfSales) * 100 : 0).toFixed(1) + '%')}
+                      </Text>
                     </View>
                   </View>
                 )}
@@ -1104,7 +1137,7 @@ const YearlyScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bgGradientFrom,
@@ -1122,7 +1155,7 @@ const styles = StyleSheet.create({
   },
   stickyHeader: {
     padding: 16,
-    paddingTop: 63,
+    paddingTop: 8,
     backgroundColor: colors.bgGradientFrom,
     zIndex: 1000,
   },
@@ -1153,6 +1186,31 @@ const styles = StyleSheet.create({
   },
   dateButton: {
     padding: 8,
+  },
+  headerRightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  iconButton: {
+    padding: 8,
+  },
+  badge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: colors.accentPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  badgeText: {
+    color: colors.bgGradientFrom,
+    fontSize: 10,
+    fontWeight: '700',
   },
   scrollContent: {
     flex: 1,
@@ -1523,6 +1581,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: colors.textPrimary,
+  },
+  costOfSalesSeparator: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: 8,
+  },
+  costOfSalesSubDetailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  costOfSalesSubDetailLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  costOfSalesSubDetailValue: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   // Basket card styles
   basketCard: {

@@ -12,44 +12,15 @@ import {
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { ChevronLeft, DollarSign, TrendingUp, ShoppingCart, ShoppingBasket, Package } from 'lucide-react-native';
 import { newPharmacyAPI } from '../../services/api';
 import { getPharmacyByCode } from '../../config/api';
 
 const { width } = Dimensions.get('window');
 
-// Color scheme matching web app
-const colors = {
-  // Background gradients
-  bgGradientFrom: '#111827',
-  bgGradientTo: '#0F172A',
-  
-  // Surface colors
-  surfacePrimary: '#1F2937',
-  surfaceSecondary: '#111827',
-  
-  // Text colors
-  textPrimary: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-  
-  // Accent colors
-  accentPrimary: '#FF4500',
-  accentPrimaryHover: '#E63E00',
-  accentPrimaryFocus: '#FFA500',
-  
-  // Status colors
-  statusSuccess: '#10B981',
-  statusWarning: '#F59E0B',
-  statusError: '#EF4444',
-  
-  // Chart colors
-  chartGold: '#FFD600',
-  chartCoquelicot: '#FF4509',
-  costSales: '#A0FC4E',
-  
-  // Border colors
-  border: '#374151',
-};
+// theme hook
+const useColors = () => useTheme().colors;
 
 interface HistoryItem {
   date: string;
@@ -60,6 +31,7 @@ interface HistoryItem {
 const DailyHistoryScreen = () => {
   const navigation = useNavigation();
   const { selectedPharmacy, pharmacies, setSelectedPharmacy, logout, selectedDate } = useAuth();
+  const { colors } = useTheme();
   
   // Selector states
   const [selectedFilter, setSelectedFilter] = useState('Turnover');
@@ -210,9 +182,9 @@ const DailyHistoryScreen = () => {
       return () => {
         navigation.getParent()?.setOptions({
           tabBarStyle: {
-            backgroundColor: '#1F2937',
+            backgroundColor: colors.surfacePrimary,
             borderTopWidth: 1,
-            borderTopColor: '#374151',
+            borderTopColor: colors.border,
             paddingBottom: 2,
             paddingTop: 2,
             height: 80,
@@ -237,6 +209,7 @@ const DailyHistoryScreen = () => {
     });
   };
 
+  const styles = getStyles(colors);
   return (
     <View style={styles.container}>
       {/* Sticky Header */}
@@ -407,7 +380,7 @@ const DailyHistoryScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bgGradientFrom,

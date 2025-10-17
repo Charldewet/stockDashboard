@@ -23,6 +23,10 @@ interface LowGPAlertModalProps {
         name?: string;
         gp_pct?: number;
         product_code?: string;
+        stock_code?: string;
+        stockCode?: string;
+        code?: string;
+        sku?: string;
       }>;
       threshold: number;
     };
@@ -57,7 +61,7 @@ const LowGPAlertModal: React.FC<LowGPAlertModalProps> = ({ route }) => {
                   {item.description || item.name || 'Unknown Product'}
                 </Text>
                 <Text style={styles.itemCode}>
-                  {item.product_code || 'N/A'}
+                  {item.product_code || item.stock_code || item.stockCode || item.code || item.sku || 'N/A'}
                 </Text>
               </View>
               <View style={styles.itemStats}>

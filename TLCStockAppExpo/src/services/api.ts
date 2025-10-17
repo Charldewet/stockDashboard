@@ -76,12 +76,30 @@ addResponseInterceptor(stockApi);
 
 // Authentication API - Backend-driven; app uses API key and username for access lists
 export const authAPI = {
-  login: async (username: string, _password: string) => {
+  login: async (username: string, password: string) => {
     try {
-      // Validate user by fetching their pharmacy access; API key auth only
-      const res = await api.get(`/users/${encodeURIComponent(username)}/pharmacies`);
-      const data = res.data || {};
-      const pharmacies = Array.isArray(data?.pharmacies) ? data.pharmacies : (Array.isArray(res.data) ? res.data : (data?.items || []));
+      // Exchange credentials for JWT
+      // Call login with clean headers (no API key), only Content-Type
+      const loginUrl = `${API_BASE_URL}/auth/login`;
+      const reqBody = { username, password };
+      console.log('AUTH:LOGIN_REQUEST', { url: loginUrl, username, hasPassword: Boolean(password) });
+      const res = await axios.post(loginUrl, reqBody, {
+        headers: { 'Content-Type': 'application/json' }
+      });
+      console.log('AUTH:LOGIN_SUCCESS', { status: res.status, keys: Object.keys(res.data || {}) });
+      const { access_token, user } = res.data || {};
+
+      if (access_token) {
+        await AsyncStorage.setItem('authToken', access_token);
+      }
+
+      // After login, fetch allowed pharmacies using authenticated request
+      // This endpoint still requires the backend API key (not JWT)
+      const pharmRes = await axios.get(`${API_BASE_URL}/users/${encodeURIComponent(username)}/pharmacies`, {
+        headers: { Authorization: `Bearer ${API_CONFIG.API_KEY}`, 'Content-Type': 'application/json' },
+      });
+      const data = pharmRes.data || {};
+      const pharmacies = Array.isArray(data?.pharmacies) ? data.pharmacies : (Array.isArray(pharmRes.data) ? pharmRes.data : (data?.items || []));
 
       const formattedPharmacies = (pharmacies as Array<any>).map((p: any) => ({
         code: String(p.pharmacy_id),
@@ -91,22 +109,19 @@ export const authAPI = {
       }));
 
       return {
-        token: null as any, // No session token; API access is via API key
+        token: access_token,
         user: {
-          username,
-          name: username,
+          username: user?.username || username,
+          name: user?.username || username,
           role: 'user',
           allowedPharmacies: (formattedPharmacies as Array<{ code: string }>).map((p: { code: string }) => p.code),
         },
       };
     } catch (error: any) {
       const status = error?.response?.status;
-      if (status === 401 || status === 403) {
-        const err: any = new Error('API_KEY_INVALID');
-        err.code = 'API_KEY_INVALID';
-        throw err;
-      }
-      if (status === 404) {
+      const body = error?.response?.data;
+      console.log('AUTH:LOGIN_FAILURE', { status, body });
+      if (status === 401) {
         const err: any = new Error('INVALID_CREDENTIALS');
         err.code = 'INVALID_CREDENTIALS';
         throw err;

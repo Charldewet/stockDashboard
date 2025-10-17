@@ -1,85 +1,41 @@
 {
   "expo": {
     "name": "TLC PharmaSight",
-    "slug": "TLCStockAppExpo",
+    "slug": "tlc-pharmasight",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/app_logo.png",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": false,
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/app_logo.png",
+      "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#1e293b"
+      "backgroundColor": "#111827"
     },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.TLCStockAppExpo",
-      "icon": "./assets/app_logo.png",
-      "infoPlist": {
-        "NSAppTransportSecurity": {
-          "NSAllowsArbitraryLoads": false,
-          "NSExceptionDomains": {
-            "tlcwebdashboard2.onrender.com": {
-              "NSExceptionAllowsInsecureHTTPLoads": false,
-              "NSExceptionMinimumTLSVersion": "1.2",
-              "NSExceptionRequiresForwardSecrecy": true,
-              "NSIncludesSubdomains": true
-            },
-            "tlc-stock-backend.onrender.com": {
-              "NSExceptionAllowsInsecureHTTPLoads": false,
-              "NSExceptionMinimumTLSVersion": "1.2",
-              "NSExceptionRequiresForwardSecrecy": true,
-              "NSIncludesSubdomains": true
-            }
-          }
-        },
-        "CFBundleDisplayName": "TLC PharmaSight",
-        "CFBundleName": "TLC PharmaSight",
-        "UIRequiresPersistentWiFi": false,
-        "UIBackgroundModes": [],
-        "UIStatusBarStyle": "light-content"
-      }
+      "bundleIdentifier": "com.tlcpharmacy.pharmasight"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/app_logo.png",
-        "backgroundColor": "#1e293b"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#111827"
       },
-      "edgeToEdgeEnabled": true,
-      "icon": "./assets/app_logo.png",
-      "package": "com.tlcpharmacy.pharmasight",
-      "versionCode": 7,
-      "permissions": []
+      "package": "com.tlcpharmacy.pharmasight"
     },
     "web": {
-      "favicon": "./assets/app_logo.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "name": "TLC PharmaSight",
+      "shortName": "PharmaSight",
+      "description": "Comprehensive pharmacy analytics dashboard for TLC pharmacies",
+      "backgroundColor": "#111827",
+      "themeColor": "#FF4500",
+      "display": "standalone",
+      "orientation": "any"
     },
-    "extra": {
-      "eas": {
-        "projectId": "a5bd1bf6-5c05-4a62-b2f0-c6ca776a4758"
-      }
-    },
-    "owner": "cdewet05",
-    "privacy": "public",
-    "platforms": [
-      "ios",
-      "android"
-    ],
-    "description": "TLC PharmaSight is a comprehensive pharmacy analytics dashboard providing real-time insights, performance metrics, and business intelligence for TLC pharmacies.",
-    "keywords": [
-      "pharmacy",
-      "analytics",
-      "dashboard",
-      "healthcare",
-      "business",
-      "metrics",
-      "TLC"
-    ],
-    "primaryColor": "#6366F1",
-    "notification": {
-      "icon": "./assets/app_logo.png",
-      "color": "#6366F1"
-    }
+    "plugins": []
   }
 }

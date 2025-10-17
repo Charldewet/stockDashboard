@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import ErrorAlert from '../../components/common/ErrorAlert';
+import { useTheme } from '../../contexts/ThemeContext';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const LoginScreen: React.FC = () => {
   const [username, setUsername] = useState('');
@@ -24,6 +26,7 @@ const LoginScreen: React.FC = () => {
   
 
   const { login, loginLoading } = useAuth();
+  const { colors, themeMode } = useTheme();
 
   const handleLogin = async () => {
     if (!username || !password) {
@@ -33,7 +36,9 @@ const LoginScreen: React.FC = () => {
       return;
     }
     try {
-      await login(username, password);
+      const trimmedUsername = username?.trim?.() ?? username;
+      const trimmedPassword = password?.trim?.() ?? password;
+      await login(trimmedUsername, trimmedPassword);
     } catch (error: any) {
       // Incorrect credentials
       if (error?.code === 'INVALID_CREDENTIALS' || error?.message === 'INVALID_CREDENTIALS') {
@@ -66,18 +71,20 @@ const LoginScreen: React.FC = () => {
     }
   };
 
+  const styles = getStyles(colors, themeMode);
+
   return (
     <View style={styles.container}>
-      {/* Background Image */}
-      <Image 
-        source={require('../../../assets/images/login_background.png')}
-        style={styles.backgroundImage}
-        resizeMode="cover"
+      {/* Themed gradient background */}
+      <LinearGradient
+        colors={themeMode === 'dark' 
+          ? ['#0B1220', '#0F172A', '#111827'] 
+          : ['#FFFFFF', '#F8FAFC', '#EEF2FF']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.gradientBackground}
       />
-      
-      {/* Overlay for better readability */}
-      <View style={styles.overlay} />
-      
+
       <ScrollView 
         contentContainerStyle={styles.scrollContainer}
         keyboardShouldPersistTaps="handled"
@@ -88,7 +95,9 @@ const LoginScreen: React.FC = () => {
           <View style={styles.header}>
             <View style={styles.logoContainer}>
               <Image 
-                source={require('../../../public/logo/logo_dark.png')}
+                source={themeMode === 'dark' 
+                  ? require('../../../assets/TLC Logo/DARK_LOGO.png') 
+                  : require('../../../assets/TLC Logo/LIGHT_LOGO.png')}
                 style={styles.logoImage}
                 resizeMode="contain"
               />
@@ -107,7 +116,7 @@ const LoginScreen: React.FC = () => {
               <TextInput
                 style={styles.input}
                 placeholder="Enter your username"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textSecondary}
                 value={username}
                 onChangeText={setUsername}
                 autoCapitalize="none"
@@ -121,7 +130,7 @@ const LoginScreen: React.FC = () => {
               <TextInput
                 style={styles.input}
                 placeholder="Enter your password"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textSecondary}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
@@ -148,7 +157,7 @@ const LoginScreen: React.FC = () => {
             >
               {loginLoading ? (
                 <View style={styles.loadingContainer}>
-                  <ActivityIndicator color="#F9FAFB" size="small" />
+                  <ActivityIndicator color={colors.textOnAccent} size="small" />
                   <Text style={styles.buttonText}>Signing in...</Text>
                 </View>
               ) : (
@@ -178,11 +187,12 @@ const LoginScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any, themeMode: 'light' | 'dark') => StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.surfaceSecondary,
   },
-  backgroundImage: {
+  gradientBackground: {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -190,14 +200,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: '100%',
     height: '100%',
-  },
-  overlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
   },
   scrollContainer: {
     flexGrow: 1,
@@ -224,12 +226,12 @@ const styles = StyleSheet.create({
   welcomeText: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#F9FAFB',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   subtitleText: {
     fontSize: 16,
-    color: '#9CA3AF',
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   formContainer: {
@@ -241,21 +243,21 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#F9FAFB',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#111827',
+    backgroundColor: colors.surfacePrimary,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: colors.border,
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#F9FAFB',
+    color: colors.textPrimary,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
+    shadowOpacity: themeMode === 'dark' ? 0.3 : 0.1,
     shadowRadius: 4,
     elevation: 4,
   },
@@ -266,16 +268,16 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   eyeButtonText: {
-    color: '#9CA3AF',
+    color: colors.textSecondary,
     fontSize: 14,
   },
 
   button: {
-    backgroundColor: '#FF4500',
+    backgroundColor: colors.accentPrimary,
     borderRadius: 8,
     paddingVertical: 14,
     alignItems: 'center',
-    shadowColor: '#FF4500',
+    shadowColor: colors.accentPrimary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 8,
@@ -283,7 +285,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   buttonDisabled: {
-    backgroundColor: '#4B5563',
+    backgroundColor: colors.disabled || '#4B5563',
     shadowOpacity: 0,
     elevation: 0,
   },
@@ -292,7 +294,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonText: {
-    color: '#F9FAFB',
+    color: colors.textOnAccent || '#F9FAFB',
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,

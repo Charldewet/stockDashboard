@@ -17,12 +17,15 @@ import { AuthNavigationProp } from '../../types/navigation';
 import LineChart, { LineChartDataPoint } from '../../components/common/LineChart';
 import SimpleLineChart from '../../components/common/SimpleLineChart';
 import ErrorAlert from '../../components/common/ErrorAlert';
+import PlaceholderChart from '../../components/common/PlaceholderChart';
 import { useAuth } from '../../contexts/AuthContext';
 import { newPharmacyAPI } from '../../services/api';
 import { getPharmacyByCode } from '../../config/api';
 import { formatDateLocal, getYesterday, getPreviousYearSameDayOfWeek, formatDateDisplay } from '../../utils/dateUtils';
 import { formatCurrency, formatPercentage, calculatePercentageChange } from '../../utils/formatUtils';
-import { TrendingUp, TrendingDown, AlertCircle, ChevronDown, Calendar, CheckCircle, AlertTriangle, Menu, LogOut, User, Bell, Shield, Settings, DollarSign, ShoppingCart, ShoppingBasket, BarChart3, ChevronRight } from 'lucide-react-native';
+import { TrendingUp, TrendingDown, AlertCircle, ChevronDown, Calendar, CheckCircle, AlertTriangle, Menu, LogOut, User, Bell, Shield, Settings, DollarSign, ShoppingCart, ShoppingBasket, BarChart3, ChevronRight, Moon, Sun } from 'lucide-react-native';
+import { useNotifications } from '../../contexts/NotificationsContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import CustomDatePicker from '../../components/common/CustomDatePicker';
 import DateScroller from '../../components/common/DateScroller';
 
@@ -46,39 +49,6 @@ interface DailyData {
   avgScriptValue?: number;
   codSales?: number;
 }
-
-// Color scheme matching web app
-const colors = {
-  // Background gradients
-  bgGradientFrom: '#111827',
-  bgGradientTo: '#0F172A',
-  
-  // Surface colors
-  surfacePrimary: '#1F2937',
-  surfaceSecondary: '#111827',
-  
-  // Text colors
-  textPrimary: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-  
-  // Accent colors
-  accentPrimary: '#FF4500',
-  accentPrimaryHover: '#E63E00',
-  accentPrimaryFocus: '#FFA500',
-  
-  // Status colors
-  statusSuccess: '#10B981',
-  statusWarning: '#F59E0B',
-  statusError: '#EF4444',
-  
-  // Chart colors
-  chartGold: '#FFD600',
-  chartCoquelicot: '#FF4509',
-  costSales: '#A0FC4E',
-  
-  // Border colors
-  border: '#374151',
-};
 
 // Add getAlerts function before the component
 const getAlerts = (data: DailyData, previousYearData: DailyData | null) => {
@@ -226,12 +196,38 @@ const getAlerts = (data: DailyData, previousYearData: DailyData | null) => {
     });
   }
 
+  // 4b. Purchases vs Sales - highlight high purchasing relative to sales
+  if (data.turnover > 0 && data.purchases > 0) {
+    const purchasesVsSales = (data.purchases / data.turnover) * 100;
+    if (purchasesVsSales > 90) {
+      alerts.push({
+        severity: 'critical',
+        icon: AlertCircle,
+        title: 'Purchases vs Sales Too High',
+        description: `${purchasesVsSales.toFixed(1)}% of turnover spent on purchases`
+      });
+    } else if (purchasesVsSales > 75) {
+      alerts.push({
+        severity: 'warning',
+        icon: AlertTriangle,
+        title: 'High Purchases vs Sales',
+        description: `${purchasesVsSales.toFixed(1)}% of turnover spent on purchases`
+      });
+    }
+  }
+
   return alerts;
 };
 
 const DailyScreen = () => {
+  console.log('🚀 DailyScreen: Component mounting...');
+  
   const navigation = useNavigation<AuthNavigationProp>();
   const { selectedPharmacy, pharmacies, setSelectedPharmacy, selectedDate, setSelectedDate, logout } = useAuth();
+  const { colors, themeMode, toggleTheme } = useTheme();
+  const styles = getStyles(colors);
+  
+  console.log('🚀 DailyScreen: Auth context values:', { selectedPharmacy, selectedDate });
   const [tempSelectedDate, setTempSelectedDate] = useState(selectedDate);
   const [dailyData, setDailyData] = useState<DailyData | null>(null);
   const [previousYearData, setPreviousYearData] = useState<DailyData | null>(null);
@@ -257,11 +253,17 @@ const DailyScreen = () => {
   const [basketCardExpanded, setBasketCardExpanded] = useState(false);
   const [scriptsCardExpanded, setScriptsCardExpanded] = useState(false);
   const slideAnim = useRef(new Animated.Value(-width)).current;
+  const { unreadCount } = useNotifications();
 
   // Fetch data only when screen is focused
   useFocusEffect(
     React.useCallback(() => {
+      console.log('🎯 DailyScreen: useFocusEffect triggered');
+      console.log('🎯 DailyScreen: selectedPharmacy:', selectedPharmacy);
+      console.log('🎯 DailyScreen: selectedDate:', selectedDate);
+      
       if (selectedPharmacy) {
+        console.log('🎯 DailyScreen: Calling fetchDailyData...');
         fetchDailyData();
         // Fetch current year MTD data
         fetchMTDData(selectedDate);
@@ -275,6 +277,8 @@ const DailyScreen = () => {
         fetchDailyTurnoverData();
         // Fetch 14-day GP% data
         fetchDailyGPPercentData();
+      } else {
+        console.log('🎯 DailyScreen: No selectedPharmacy, skipping data fetch');
       }
     }, [selectedPharmacy, selectedDate])
   );
@@ -399,9 +403,18 @@ const DailyScreen = () => {
   const fetchDailyData = async () => {
     if (!selectedPharmacy) return;
 
+    console.log('🔄 DailyScreen: Starting fetchDailyData for pharmacy:', selectedPharmacy);
     setLoading(true);
+    
+    // Add timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      console.log('⏰ DailyScreen: API call timeout, setting loading to false');
+      setLoading(false);
+    }, 15000); // 15 second timeout
+    
     try {
       const dateStr = formatDateLocal(selectedDate);
+      console.log('📅 DailyScreen: Fetching data for date:', dateStr);
 
       const currentYear = selectedDate.getFullYear();
       const shouldFetchPreviousYear = currentYear > 2024;
@@ -411,8 +424,12 @@ const DailyScreen = () => {
       const pharmacy = getPharmacyByCode(selectedPharmacy);
       if (!pharmacy) throw new Error('Invalid pharmacy selected');
 
+      console.log('🏥 DailyScreen: Pharmacy found:', pharmacy);
+
       // Always fetch current day data; this determines success/failure of the screen
+      console.log('📡 DailyScreen: Calling API for daily turnover...');
       const dailyTurnoverData = await newPharmacyAPI.getDailyTurnover(pharmacy.id, dateStr);
+      console.log('✅ DailyScreen: API response received:', dailyTurnoverData);
 
       const currentData: DailyData = {
         turnover: Number(dailyTurnoverData?.turnover) || 0,
@@ -468,14 +485,18 @@ const DailyScreen = () => {
         }
       }
 
+      console.log('📊 DailyScreen: Setting current data:', currentData);
       setDailyData(currentData);
       setPreviousYearData(previousData);
+      console.log('✅ DailyScreen: Data set successfully, loading should be false');
     } catch (error) {
-      console.error('Error fetching daily data (current day):', error);
+      console.error('❌ DailyScreen: Error fetching daily data (current day):', error);
       setErrorTitle('Data Fetch Error');
       setErrorMessage('Failed to load daily data. Please try again.');
       setShowErrorAlert(true);
     } finally {
+      console.log('🔄 DailyScreen: Finally block - setting loading to false');
+      clearTimeout(timeoutId);
       setLoading(false);
     }
   };
@@ -664,11 +685,13 @@ const DailyScreen = () => {
 
 
   if (!dailyData) {
+    console.log('🎯 DailyScreen: No dailyData, showing loading/error state. Loading:', loading);
     return (
       <View style={styles.container}>
         {loading ? (
           <View style={styles.loadingOverlay} pointerEvents="auto">
             <ActivityIndicator size="large" color={colors.accentPrimary} />
+            <Text style={styles.loadingText}>Loading daily data...</Text>
           </View>
         ) : (
           <View style={styles.errorContainer}>
@@ -683,6 +706,8 @@ const DailyScreen = () => {
     );
   }
 
+  console.log('🎨 DailyScreen: Rendering main UI, loading:', loading, 'dailyData:', !!dailyData);
+  
   return (
     <View style={styles.container}>
       {loading && (
@@ -717,13 +742,25 @@ const DailyScreen = () => {
         </TouchableOpacity>
           </View>
 
-          {/* Right side: Date Selector */}
-          <TouchableOpacity 
-            style={styles.dateButton} 
-            onPress={handleDatePickerOpen}
-          >
-            <Calendar size={20} color={colors.textSecondary} />
-          </TouchableOpacity>
+          {/* Right side: Calendar and Theme Toggle */}
+          <View style={styles.headerRightRow}>
+            <TouchableOpacity 
+              style={styles.iconButton}
+              onPress={handleDatePickerOpen}
+            >
+              <Calendar size={20} color={colors.textPrimary} />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.iconButton}
+              onPress={toggleTheme}
+            >
+              {themeMode === 'dark' ? (
+                <Sun size={20} color={colors.textPrimary} />
+              ) : (
+                <Moon size={20} color={colors.textPrimary} />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -785,6 +822,20 @@ const DailyScreen = () => {
               >
                 <Settings size={20} color={colors.textPrimary} />
                 <Text style={styles.hamburgerMenuItemText}>Preferences</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.hamburgerMenuItem}
+                onPress={() => toggleTheme()}
+              >
+                {themeMode === 'dark' ? (
+                  <Sun size={20} color={colors.textPrimary} />
+                ) : (
+                  <Moon size={20} color={colors.textPrimary} />
+                )}
+                <Text style={styles.hamburgerMenuItemText}>
+                  {themeMode === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                </Text>
               </TouchableOpacity>
             </View>
             
@@ -963,6 +1014,15 @@ const DailyScreen = () => {
               <View style={styles.costOfSalesDetailRow}>
                 <Text style={styles.costOfSalesDetailLabel}>Purchases</Text>
                 <Text style={styles.costOfSalesDetailValue}>{formatCurrency(dailyData.purchases)}</Text>
+              </View>
+              <View style={styles.costOfSalesSeparator} />
+              <View style={styles.costOfSalesSubDetailRow}>
+                <Text style={styles.costOfSalesSubDetailLabel}>% Purchases vs Sales</Text>
+                <Text style={[styles.costOfSalesSubDetailValue, { color: ((dailyData.turnover ? (dailyData.purchases / dailyData.turnover) * 100 : 0) > 90) ? colors.statusError : ((dailyData.turnover ? (dailyData.purchases / dailyData.turnover) * 100 : 0) > 75) ? colors.statusWarning : colors.textPrimary }]}>{(dailyData.turnover ? (dailyData.purchases / dailyData.turnover) * 100 : 0).toFixed(1)}%</Text>
+              </View>
+              <View style={styles.costOfSalesSubDetailRow}>
+                <Text style={styles.costOfSalesSubDetailLabel}>% Purchases vs CoS</Text>
+                <Text style={[styles.costOfSalesSubDetailValue, { color: ((dailyData.costOfSales ? (dailyData.purchases / dailyData.costOfSales) * 100 : 0) > 100) ? colors.statusError : ((dailyData.costOfSales ? (dailyData.purchases / dailyData.costOfSales) * 100 : 0) > 90) ? colors.statusWarning : colors.textPrimary }]}>{(dailyData.costOfSales ? (dailyData.purchases / dailyData.costOfSales) * 100 : 0).toFixed(1)}%</Text>
               </View>
             </View>
           )}
@@ -1211,7 +1271,7 @@ const DailyScreen = () => {
       
       {/* Trends Container */}
       <View style={styles.trendsContainer}>
-        {dailyTurnoverData.length > 0 ? (
+        {dailyTurnoverData.length >= 2 ? (
           <View style={[styles.barChartContainer, { alignItems: 'center' }]}>
             <SimpleLineChart
               data={dailyTurnoverData.map((item: any) => ({
@@ -1219,9 +1279,8 @@ const DailyScreen = () => {
                 y: item.value,
                 label: item.label,
               }))}
-              width={width - 64}
               height={160}
-              theme="dark"
+              theme={colors.bgGradientFrom === '#EEEDF2' ? 'light' : 'dark'}
               primaryColor={colors.accentPrimary}
               strokeWidth={2}
               formatYLabel={(value: number) => {
@@ -1230,12 +1289,13 @@ const DailyScreen = () => {
                 return `R${value.toFixed(0)}`;
               }}
               formatXLabel={(value: string | number) => value.toString()}
-          />
-        </View>
-        ) : (
-          <View style={styles.emptyTrendsCard}>
-            <Text style={styles.emptyTrendsText}>Loading trends data...</Text>
+            />
           </View>
+        ) : (
+          <PlaceholderChart 
+            height={160} 
+            message="Collecting turnover data..." 
+          />
         )}
       </View>
 
@@ -1246,7 +1306,7 @@ const DailyScreen = () => {
       
       {/* GP% Trends Container */}
       <View style={styles.trendsContainer}>
-        {dailyGPPercentData.length > 0 ? (
+        {dailyGPPercentData.length >= 2 ? (
           <View style={[styles.barChartContainer, { alignItems: 'center' }]}>
             <SimpleLineChart
               data={dailyGPPercentData.map((item: any) => ({
@@ -1254,19 +1314,19 @@ const DailyScreen = () => {
                 y: item.value,
                 label: item.label,
               }))}
-              width={width - 64}
               height={160}
-              theme="dark"
+              theme={colors.bgGradientFrom === '#EEEDF2' ? 'light' : 'dark'}
               primaryColor={colors.chartGold}
               strokeWidth={2}
               formatYLabel={(value: number) => `${value.toFixed(1)}%`}
               formatXLabel={(value: string | number) => value.toString()}
-          />
-        </View>
-        ) : (
-          <View style={styles.emptyTrendsCard}>
-            <Text style={styles.emptyTrendsText}>Loading GP% trends data...</Text>
+            />
           </View>
+        ) : (
+          <PlaceholderChart 
+            height={160} 
+            message="Collecting GP% trends..." 
+          />
         )}
       </View>
 
@@ -1339,7 +1399,7 @@ const DailyScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bgGradientFrom,
@@ -1393,7 +1453,7 @@ const styles = StyleSheet.create({
   },
   stickyHeader: {
     padding: 16,
-    paddingTop: 63,
+    paddingTop: 8,
     backgroundColor: colors.bgGradientFrom,
     zIndex: 1000,
   },
@@ -1432,6 +1492,31 @@ const styles = StyleSheet.create({
   },
   dateButton: {
     padding: 8,
+  },
+  headerRightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  iconButton: {
+    padding: 8,
+  },
+  badge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: colors.accentPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  badgeText: {
+    color: colors.bgGradientFrom,
+    fontSize: 10,
+    fontWeight: '700',
   },
   selectorLabel: {
     fontSize: 12,
@@ -1996,6 +2081,27 @@ const styles = StyleSheet.create({
   },
   costOfSalesDetailValue: {
     fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  costOfSalesSeparator: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: 8,
+  },
+  costOfSalesSubDetailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  costOfSalesSubDetailLabel: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  costOfSalesSubDetailValue: {
+    fontSize: 14,
     fontWeight: '600',
     color: colors.textPrimary,
   },

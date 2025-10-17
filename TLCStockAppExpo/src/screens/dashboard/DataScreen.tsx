@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useTheme } from '../../contexts/ThemeContext';
 import { AuthNavigationProp } from '../../types/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import DataCalendar, { DataStatus } from '../../components/common/DataCalendar';
@@ -32,38 +33,7 @@ const getPharmacyId = (pharmacyCode: string): number => {
   return pharmacyMap[pharmacyCode] || 1; // Default to 1 if not found
 };
 
-// Color scheme matching web app
-const colors = {
-  // Background gradients
-  bgGradientFrom: '#111827',
-  bgGradientTo: '#0F172A',
-  
-  // Surface colors
-  surfacePrimary: '#1F2937',
-  surfaceSecondary: '#111827',
-  
-  // Text colors
-  textPrimary: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-  
-  // Accent colors
-  accentPrimary: '#FF4500',
-  accentPrimaryHover: '#E63E00',
-  accentPrimaryFocus: '#FFA500',
-  
-  // Status colors
-  statusSuccess: '#10B981',
-  statusWarning: '#F59E0B',
-  statusError: '#EF4444',
-  
-  // Chart colors
-  chartGold: '#FFD600',
-  chartCoquelicot: '#FF4509',
-  costSales: '#A0FC4E',
-  
-  // Border colors
-  border: '#374151',
-};
+// theme hook
 
 // Required report types for a date to be considered complete
 const REQUIRED_REPORTS = [
@@ -93,6 +63,7 @@ const toDateKey = (d: string | Date): string => {
 const DataScreen = () => {
   const navigation = useNavigation<AuthNavigationProp>();
   const { selectedPharmacy } = useAuth();
+  const { colors } = useTheme();
 
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date(2025, 7, 1)); // August 2025 (month is 0-indexed)
   const [loading, setLoading] = useState<boolean>(false);
@@ -273,6 +244,7 @@ const DataScreen = () => {
     return status ? status.status : null;
   };
 
+  const styles = getStyles(colors);
   return (
     <View style={styles.container}>
       <View style={styles.stickyHeader}>
@@ -388,7 +360,7 @@ const DataScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bgGradientFrom,

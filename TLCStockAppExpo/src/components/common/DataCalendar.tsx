@@ -6,38 +6,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 
-// Color scheme matching web app
-const colors = {
-  // Background gradients
-  bgGradientFrom: '#111827',
-  bgGradientTo: '#0F172A',
-  
-  // Surface colors
-  surfacePrimary: '#1F2937',
-  surfaceSecondary: '#111827',
-  
-  // Text colors
-  textPrimary: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-  
-  // Accent colors
-  accentPrimary: '#FF4500',
-  accentPrimaryHover: '#E63E00',
-  accentPrimaryFocus: '#FFA500',
-  
-  // Status colors
-  statusSuccess: '#10B981',
-  statusWarning: '#F59E0B',
-  statusError: '#EF4444',
-  
-  // Chart colors
-  chartGold: '#FFD600',
-  chartCoquelicot: '#FF4509',
-  costSales: '#A0FC4E',
-  
-  // Border colors
-  border: '#374151',
-};
+import { useTheme } from '../../contexts/ThemeContext';
 
 export interface DataStatus {
   date: string; // Format: 'YYYY-MM-DD'
@@ -55,6 +24,7 @@ const DataCalendar: React.FC<DataCalendarProps> = ({
   dataStatus,
   onDatePress,
 }) => {
+  const { colors } = useTheme();
   const getFirstDayOfMonth = (date: Date): Date => new Date(date.getFullYear(), date.getMonth(), 1);
   const getLastDayOfMonth = (date: Date): Date => new Date(date.getFullYear(), date.getMonth() + 1, 0);
   const getFirstDayOfWeek = (date: Date): number => getFirstDayOfMonth(date).getDay();
@@ -118,6 +88,7 @@ const DataCalendar: React.FC<DataCalendarProps> = ({
 
   const calendarWeeks = generateCalendarWeeks();
 
+  const styles = getStyles(colors);
   return (
     <View style={styles.container}>
       <View style={styles.dayNamesRow}>
@@ -173,7 +144,7 @@ const DataCalendar: React.FC<DataCalendarProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     backgroundColor: colors.surfacePrimary,
     borderRadius: 12,

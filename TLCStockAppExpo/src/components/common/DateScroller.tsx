@@ -24,7 +24,7 @@ const TOTAL_ITEM_WIDTH = ITEM_WIDTH + (ITEM_MARGIN * 2);
 const DateScroller: React.FC<DateScrollerProps> = ({ selectedDate, onChange, colors }) => {
   const listRef = useRef<FlatList<Date>>(null);
   const [dateItems, setDateItems] = useState<Date[]>([]);
-  const screenWidth = Dimensions.get('window').width;
+  const [containerWidth, setContainerWidth] = useState<number>(Dimensions.get('window').width);
 
   // Update date items whenever selectedDate changes
   useEffect(() => {
@@ -57,13 +57,14 @@ const DateScroller: React.FC<DateScrollerProps> = ({ selectedDate, onChange, col
       try {
         const centerIndex = daysBefore;
         const containerMargin = 16; // Account for the container marginHorizontal
-        const centerOffset = (centerIndex * TOTAL_ITEM_WIDTH) - (screenWidth / 2) + (TOTAL_ITEM_WIDTH / 2) + containerMargin;
+        const width = containerWidth || Dimensions.get('window').width;
+        const centerOffset = (centerIndex * TOTAL_ITEM_WIDTH) - (width / 2) + (TOTAL_ITEM_WIDTH / 2) + containerMargin;
         listRef.current?.scrollToOffset({ offset: centerOffset, animated: true });
       } catch (error) {
         console.log('Scroll error:', error);
       }
     }, 100);
-  }, [selectedDate, screenWidth]);
+  }, [selectedDate, containerWidth]);
 
   const renderItem = ({ item }: { item: Date }) => {
     const isSelected = item.toDateString() === selectedDate.toDateString();
@@ -93,7 +94,7 @@ const DateScroller: React.FC<DateScrollerProps> = ({ selectedDate, onChange, col
   };
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}>
       <FlatList
         ref={listRef}
         data={dateItems}

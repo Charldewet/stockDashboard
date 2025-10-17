@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Dimensions, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, Pressable } from 'react-native';
 import Svg, { Polyline, Circle, Text as SvgText, Defs, LinearGradient, Stop, Path } from 'react-native-svg';
 
 const { width } = Dimensions.get('window');
@@ -28,7 +28,7 @@ interface DoubleLineChartProps {
 export const DoubleLineChart: React.FC<DoubleLineChartProps> = ({
   data1,
   data2,
-  width: chartWidth = width,
+  width: propWidth,
   height = 200,
   theme = 'dark',
   primaryColor = '#FF4500',
@@ -45,6 +45,9 @@ export const DoubleLineChart: React.FC<DoubleLineChartProps> = ({
     data2: DoubleLineChartDataPoint | null;
     pointIndex: number;
   } | null>(null);
+  
+  // FORCE maximum width to 398px (430px container - 32px padding)
+  const chartWidth = Math.min(propWidth ?? width, 398);
 
   if (!data1 || data1.length === 0) {
     return (
@@ -143,9 +146,11 @@ export const DoubleLineChart: React.FC<DoubleLineChartProps> = ({
   };
 
   return (
-    <View style={[styles.container, { backgroundColor, paddingTop: 10, width: chartWidth * 1.09, height: height * 1.15 }]}>
-      <TouchableWithoutFeedback onPress={handleTouch} onPressOut={handleTouchEnd}>
-        <Svg width={chartWidth} height={height}>
+    <View style={[styles.container, { backgroundColor, paddingTop: 10, maxWidth: 398 }]}>
+      <View style={{ width: chartWidth, height }}>
+        <Pressable onPressIn={handleTouch} onPressOut={handleTouchEnd}>
+          <View style={{ width: chartWidth, height }}>
+            <Svg width={chartWidth} height={height}>
         {/* Gradient definitions */}
         <Defs>
           <LinearGradient id="areaGradient1" x1="0%" y1="10%" x2="0%" y2="100%">
@@ -221,63 +226,46 @@ export const DoubleLineChart: React.FC<DoubleLineChartProps> = ({
         {/* Tooltip */}
         {tooltip && (
           <>
-            {/* Current year value */}
-            {tooltip.data1 && (
-              <SvgText
-                x={padding.left + 100}
-                y={height - 60}
-                fontSize="14"
-                fill={primaryColor}
-                textAnchor="start"
-                alignmentBaseline="middle"
-                fontWeight="bold"
-              >
-                {data1Label}: {formatYLabel ? formatYLabel(tooltip.data1.y) : tooltip.data1.y.toFixed(3)}
-              </SvgText>
-            )}
-            
-            {/* Previous year value */}
-            {tooltip.data2 && (
-              <SvgText
-                x={padding.left + 100}
-                y={height - 45}
-                fontSize="14"
-                fill={secondaryColor}
-                textAnchor="start"
-                alignmentBaseline="middle"
-                fontWeight="bold"
-              >
-                {data2Label}: {formatYLabel ? formatYLabel(tooltip.data2.y) : tooltip.data2.y.toFixed(3)}
-              </SvgText>
-            )}
-            
-
-            
-            {/* Selected point indicators */}
-            <Circle
-              cx={points1[tooltip.pointIndex]?.x || 0}
-              cy={points1[tooltip.pointIndex]?.y || 0}
-              r={6}
-              fill={'#FFFFFF'}
-              stroke={backgroundColor}
-              strokeWidth={2}
-            />
-            
-            {points2[tooltip.pointIndex] && (
-              <Circle
-                cx={points2[tooltip.pointIndex].x}
-                cy={points2[tooltip.pointIndex].y}
-                r={6}
-                fill={'#FFFFFF'}
-                stroke={backgroundColor}
-                strokeWidth={2}
-              />
-            )}
+            {(() => {
+              const p1 = points1[tooltip.pointIndex];
+              const p2 = points2[tooltip.pointIndex];
+              const tooltipWidth = 170;
+              const tooltipHeight = 54;
+              const minX = padding.left;
+              const maxX = chartWidth - tooltipWidth - 8;
+              const anchorX = p1?.x ?? (p2?.x ?? padding.left);
+              const anchorY = Math.min(p1?.y ?? Infinity, p2?.y ?? Infinity);
+              const tx = Math.max(minX, Math.min(anchorX - tooltipWidth / 2, maxX));
+              const ty = Math.max(8, (anchorY || 0) - tooltipHeight - 8);
+              return (
+                <>
+                  {/* Bubble */}
+                  <Rect x={tx} y={ty} width={tooltipWidth} height={tooltipHeight} rx={6} ry={6} fill={'#111827'} opacity={0.9} />
+                  {/* Current year */}
+                  {tooltip.data1 && (
+                    <SvgText x={tx + 8} y={ty + 18} fontSize="12" fill={'#F9FAFB'} fontWeight="bold">
+                      {data1Label}: {formatYLabel ? formatYLabel(tooltip.data1.y) : tooltip.data1.y.toFixed(0)}
+                    </SvgText>
+                  )}
+                  {/* Previous year */}
+                  {tooltip.data2 && (
+                    <SvgText x={tx + 8} y={ty + 34} fontSize="12" fill={'#D1D5DB'}>
+                      {data2Label}: {formatYLabel ? formatYLabel(tooltip.data2.y) : tooltip.data2.y.toFixed(0)}
+                    </SvgText>
+                  )}
+                  {/* Selected indicators */}
+                  {p1 && <Circle cx={p1.x} cy={p1.y} r={6} fill={'#FFFFFF'} stroke={backgroundColor} strokeWidth={2} />}
+                  {p2 && <Circle cx={p2.x} cy={p2.y} r={6} fill={'#FFFFFF'} stroke={backgroundColor} strokeWidth={2} />}
+                </>
+              );
+            })()}
           </>
         )}
 
-      </Svg>
-      </TouchableWithoutFeedback>
+            </Svg>
+          </View>
+        </Pressable>
+      </View>
     </View>
   );
 };

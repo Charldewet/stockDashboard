@@ -4,17 +4,9 @@ import { useNavigation } from '@react-navigation/native';
 import { newPharmacyAPI } from '../../services/api';
 import { formatDateLocal, getPreviousYearSameDayOfWeek } from '../../utils/dateUtils';
 import { calculatePercentageChange } from '../../utils/formatUtils';
+import { useTheme } from '../../contexts/ThemeContext';
 
-const colors = {
-  bgGradientFrom: '#111827',
-  surfacePrimary: '#1F2937',
-  textPrimary: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-  accentPrimary: '#FF4500',
-  statusSuccess: '#10B981',
-  statusError: '#EF4444',
-  costSales: '#A0FC4E',
-};
+// theme hook
 
 interface DailySummaryModalProps {
   route: {
@@ -28,6 +20,7 @@ interface DailySummaryModalProps {
 const DailySummaryModal: React.FC<DailySummaryModalProps> = ({ route }) => {
   const navigation = useNavigation();
   const { pharmacyCode, pharmacyName } = route.params || { pharmacyCode: '', pharmacyName: 'Pharmacy' };
+  const { colors } = useTheme();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -93,6 +86,7 @@ const DailySummaryModal: React.FC<DailySummaryModalProps> = ({ route }) => {
   const growthPct = getGrowthPercentage();
   const isPositive = growthPct !== null && growthPct >= 0;
 
+  const styles = getStyles(colors);
   return (
     <View style={styles.overlay}>
       <View style={styles.card}>
@@ -119,10 +113,10 @@ const DailySummaryModal: React.FC<DailySummaryModalProps> = ({ route }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'center',
     alignItems: 'center',
   },

@@ -4,25 +4,18 @@ import { useNavigation } from '@react-navigation/native';
 import { AuthNavigationProp } from '../../types/navigation';
 import { ChevronLeft } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 
-// Color scheme matching web app
-const colors = {
-  bgGradientFrom: '#111827',
-  bgGradientTo: '#0F172A',
-  surfacePrimary: '#1F2937',
-  surfaceSecondary: '#111827',
-  textPrimary: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-  accentPrimary: '#FF4500',
-  border: '#374151',
-};
+// theme hook
 
 const AccountScreen: React.FC = () => {
   const navigation = useNavigation<AuthNavigationProp>();
+  const { colors } = useTheme();
   const { user, pharmacies } = useAuth();
 
   const username = user?.username || user?.name || 'Unknown';
 
+  const styles = getStyles(colors);
   return (
     <View style={styles.container}>
       <View style={styles.stickyHeader}>
@@ -59,14 +52,14 @@ const AccountScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bgGradientFrom,
   },
   stickyHeader: {
     padding: 16,
-    paddingTop: 63,
+    paddingTop: 8,
     backgroundColor: colors.bgGradientFrom,
     zIndex: 1000,
   },

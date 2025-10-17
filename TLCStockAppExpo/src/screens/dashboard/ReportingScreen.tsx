@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { AuthNavigationProp } from '../../types/navigation';
 import { ChevronLeft, Download, TrendingUp, AlertTriangle, BarChart3, Calendar, Search, Check, X } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { exportStockDataToPDF, exportTurnoverReportToPDF, exportTradingReportToPDF } from '../../utils/pdfUtils';
 import { API_CONFIG } from '../../config/api';
 import { formatDateLocal, formatDateDisplay } from '../../utils/dateUtils';
@@ -24,24 +25,11 @@ const getPharmacyId = (pharmacyCode: string): number => {
   return pharmacyMap[pharmacyCode] || 1; // Default to 1 if not found
 };
 
-// Color scheme matching web app
-const colors = {
-  bgGradientFrom: '#111827',
-  bgGradientTo: '#0F172A',
-  surfacePrimary: '#1F2937',
-  surfaceSecondary: '#111827',
-  textPrimary: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-  accentPrimary: '#FF4500',
-  border: '#374151',
-  statusSuccess: '#10B981',
-  statusError: '#EF4444',
-  statusWarning: '#F59E0B',
-  accentPurple: '#8B5CF6',
-};
+// theme hook
 
 const ReportingScreen: React.FC = () => {
   const navigation = useNavigation<AuthNavigationProp>();
+  const { colors } = useTheme();
   const { user, pharmacies, selectedPharmacy, selectedDate } = useAuth();
 
   const [exporting, setExporting] = useState<string | null>(null);
@@ -519,6 +507,7 @@ const ReportingScreen: React.FC = () => {
     return () => clearTimeout(t);
   }, [searchQuery]);
 
+  const styles = getStyles(colors);
   return (
     <View style={styles.container}>
       <View style={styles.stickyHeader}>
@@ -1005,7 +994,7 @@ const ReportingScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bgGradientFrom,

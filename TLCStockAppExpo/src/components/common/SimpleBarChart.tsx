@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Dimensions, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, Pressable } from 'react-native';
 import Svg, { Rect, Text as SvgText, Defs, LinearGradient, Stop } from 'react-native-svg';
 
 const { width } = Dimensions.get('window');
@@ -24,7 +24,7 @@ interface SimpleBarChartProps {
 
 export const SimpleBarChart: React.FC<SimpleBarChartProps> = ({
   data,
-  width: chartWidth = width,
+  width: propWidth,
   height = 200,
   theme = 'dark',
   primaryColor = '#FF4500',
@@ -38,6 +38,9 @@ export const SimpleBarChart: React.FC<SimpleBarChartProps> = ({
     data: SimpleBarChartDataPoint;
     pointIndex: number;
   } | null>(null);
+
+  // FORCE maximum width to 398px (430px container - 32px padding)
+  const chartWidth = Math.min(propWidth ?? width, 398);
 
   if (!data || data.length === 0) {
     return (
@@ -132,9 +135,11 @@ export const SimpleBarChart: React.FC<SimpleBarChartProps> = ({
   };
 
   return (
-    <View style={[styles.container, { backgroundColor, paddingTop: 10, width: chartWidth * 1.09, height: height * 1.15 }]}>
-      <TouchableWithoutFeedback onPress={handleTouch} onPressOut={handleTouchEnd}>
-        <Svg width={chartWidth} height={height}>
+    <View style={[styles.container, { backgroundColor, paddingTop: 10, maxWidth: 398 }]}>
+      <View style={{ width: chartWidth, height }}>
+        <Pressable onPressIn={handleTouch} onPressOut={handleTouchEnd}>
+          <View style={{ width: chartWidth, height }}>
+            <Svg width={chartWidth} height={height}>
         {/* Gradient definitions */}
         <Defs>
           <LinearGradient id="barGradient" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -190,48 +195,38 @@ export const SimpleBarChart: React.FC<SimpleBarChartProps> = ({
         {/* Tooltip */}
         {tooltip && (
           <>
-            {/* Value */}
-            <SvgText
-              x={padding.left + 10}
-              y={height - 45}
-              fontSize="16"
-              fill={'#FFFFFF'}
-              textAnchor="start"
-              alignmentBaseline="middle"
-              fontWeight="bold"
-            >
-              {formatYLabel ? formatYLabel(tooltip.data.y) : tooltip.data.y.toFixed(3)}
-            </SvgText>
-            
-            {/* Date label */}
-            <SvgText
-              x={padding.left + 10}
-              y={height - 30}
-              fontSize="10"
-              fill={'#FFFFFF'}
-              textAnchor="start"
-              alignmentBaseline="middle"
-            >
-              {formatXLabel ? formatXLabel(tooltip.data.x) : tooltip.data.x.toString()}
-            </SvgText>
-            
-            {/* Selected bar indicator */}
-            <Rect
-              x={bars[tooltip.pointIndex].x - 2}
-              y={bars[tooltip.pointIndex].y - 2}
-              width={bars[tooltip.pointIndex].width + 4}
-              height={bars[tooltip.pointIndex].height + 4}
-              fill="none"
-              stroke={'#FFFFFF'}
-              strokeWidth={2}
-              rx={4}
-              ry={4}
-            />
+            {(() => {
+              const bar = bars[tooltip.pointIndex];
+              const tooltipWidth = 120;
+              const tooltipHeight = 40;
+              const minX = padding.left;
+              const maxX = chartWidth - tooltipWidth - 8;
+              const tx = Math.max(minX, Math.min(bar.centerX - tooltipWidth / 2, maxX));
+              const ty = Math.max(8, bar.y - tooltipHeight - 6);
+              return (
+                <>
+                  {/* Bubble */}
+                  <Rect x={tx} y={ty} width={tooltipWidth} height={tooltipHeight} rx={6} ry={6} fill={'#111827'} opacity={0.9} />
+                  {/* Value */}
+                  <SvgText x={tx + 8} y={ty + 16} fontSize="12" fill={'#F9FAFB'} fontWeight="bold">
+                    {formatYLabel ? formatYLabel(tooltip.data.y) : tooltip.data.y.toFixed(0)}
+                  </SvgText>
+                  {/* Label */}
+                  <SvgText x={tx + 8} y={ty + 30} fontSize="10" fill={'#D1D5DB'}>
+                    {formatXLabel ? formatXLabel(tooltip.data.x) : tooltip.data.x.toString()}
+                  </SvgText>
+                  {/* Highlight around selected bar */}
+                  <Rect x={bar.x - 2} y={bar.y - 2} width={bar.width + 4} height={bar.height + 4} fill="none" stroke={'#FFFFFF'} strokeWidth={2} rx={4} ry={4} />
+                </>
+              );
+            })()}
           </>
         )}
 
-      </Svg>
-      </TouchableWithoutFeedback>
+            </Svg>
+          </View>
+        </Pressable>
+      </View>
     </View>
   );
 };

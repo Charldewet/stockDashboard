@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { ChevronLeft, TrendingUp, AlertTriangle, Package, DollarSign, Download } from 'lucide-react-native';
 import { dailyStockAPI } from '../../services/api';
 import { formatDateLocal } from '../../utils/dateUtils';
@@ -41,38 +42,7 @@ const getPharmacyId = (pharmacyCode: string): number => {
   return 1;
 };
 
-// Color scheme matching web app
-const colors = {
-  // Background gradients
-  bgGradientFrom: '#111827',
-  bgGradientTo: '#0F172A',
-  
-  // Surface colors
-  surfacePrimary: '#1F2937',
-  surfaceSecondary: '#111827',
-  
-  // Text colors
-  textPrimary: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-  
-  // Accent colors
-  accentPrimary: '#FF4500',
-  accentPrimaryHover: '#E63E00',
-  accentPrimaryFocus: '#FFA500',
-  
-  // Status colors
-  statusSuccess: '#10B981',
-  statusWarning: '#F59E0B',
-  statusError: '#EF4444',
-  
-  // Chart colors
-  chartGold: '#FFD600',
-  chartCoquelicot: '#FF4509',
-  costSales: '#A0FC4E',
-  
-  // Border colors
-  border: '#374151',
-};
+const useColors = () => useTheme().colors;
 
 interface StockProduct {
   productName?: string;
@@ -109,6 +79,7 @@ interface StockProduct {
 const StockHistoryScreen = () => {
   const navigation = useNavigation();
   const { selectedPharmacy, pharmacies, selectedDate, logout } = useAuth();
+  const { colors } = useTheme();
   
   // Selector states
   const [selectedFilter, setSelectedFilter] = useState('Top Day');
@@ -959,9 +930,9 @@ const StockHistoryScreen = () => {
       return () => {
         navigation.getParent()?.setOptions({
           tabBarStyle: {
-            backgroundColor: '#1F2937',
+            backgroundColor: colors.surfacePrimary,
             borderTopWidth: 1,
-            borderTopColor: '#374151',
+            borderTopColor: colors.border,
             paddingBottom: 2,
             paddingTop: 2,
             height: 80,
@@ -976,6 +947,7 @@ const StockHistoryScreen = () => {
     return pharmacy ? pharmacy.name : selectedPharmacy;
   };
 
+  const styles = getStyles(colors);
   return (
     <View style={styles.container}>
       {/* Sticky Header */}
@@ -1552,7 +1524,7 @@ const StockHistoryScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bgGradientFrom,

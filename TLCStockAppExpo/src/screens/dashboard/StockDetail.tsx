@@ -14,6 +14,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useNavigation } from '@react-navigation/native';
 import { ChevronLeft, Search, Calendar, ChevronRight } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 
 import { API_CONFIG } from '../../config/api';
 import CustomDatePicker from '../../components/common/CustomDatePicker';
@@ -29,21 +30,12 @@ const getPharmacyId = (pharmacy: any): string => {
   return '1'; // fallback
 };
 
-const colors = {
-  bgGradientFrom: '#111827',
-  surfacePrimary: '#1F2937',
-  textPrimary: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-  accentPrimary: '#FF4500',
-  border: '#374151',
-  costSales: '#A0FC4E',
-  statusSuccess: '#10B981',
-  statusError: '#EF4444',
-};
+const useColors = () => useTheme().colors;
 
 const StockDetail = () => {
   const navigation = useNavigation();
   const { selectedPharmacy } = useAuth();
+  const { colors } = useTheme();
   const [activeFilter, setActiveFilter] = useState('itemSearch');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -364,9 +356,9 @@ const StockDetail = () => {
       return () => {
         navigation.getParent()?.setOptions({
           tabBarStyle: {
-            backgroundColor: '#1F2937',
+            backgroundColor: colors.surfacePrimary,
             borderTopWidth: 1,
-            borderTopColor: '#374151',
+            borderTopColor: colors.border,
             paddingBottom: 2,
             paddingTop: 2,
             height: 80,
@@ -376,6 +368,7 @@ const StockDetail = () => {
     }, [navigation])
   );
 
+  const styles = getStyles(colors);
   return (
     <View style={styles.container}>
       {/* Sticky Header */}
@@ -670,7 +663,7 @@ const StockDetail = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bgGradientFrom,

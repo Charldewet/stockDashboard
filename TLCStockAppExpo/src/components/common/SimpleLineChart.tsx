@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Dimensions, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, Pressable } from 'react-native';
 import Svg, { Polyline, Circle, Text as SvgText, Defs, LinearGradient, Stop, Path } from 'react-native-svg';
 
 const { width } = Dimensions.get('window');
@@ -23,7 +23,7 @@ interface SimpleLineChartProps {
 
 export const SimpleLineChart: React.FC<SimpleLineChartProps> = ({
   data,
-  width: chartWidth = width,
+  width: propWidth,
   height = 200,
   theme = 'dark',
   primaryColor = '#FF4500',
@@ -36,6 +36,9 @@ export const SimpleLineChart: React.FC<SimpleLineChartProps> = ({
     data: SimpleLineChartDataPoint;
     pointIndex: number;
   } | null>(null);
+  
+  // FORCE maximum width to 398px (430px container - 32px padding)
+  const chartWidth = Math.min(propWidth ?? width, 398);
   if (!data || data.length === 0) {
     return (
       <View style={[styles.container, styles.emptyContainer]}>
@@ -129,9 +132,11 @@ export const SimpleLineChart: React.FC<SimpleLineChartProps> = ({
   };
 
   return (
-    <View style={[styles.container, { backgroundColor, paddingTop: 10, width: chartWidth * 1.09, height: height * 1.15 }]}>
-      <TouchableWithoutFeedback onPress={handleTouch} onPressOut={handleTouchEnd}>
-        <Svg width={chartWidth} height={height}>
+    <View style={[styles.container, { backgroundColor, paddingTop: 10, maxWidth: 398 }]}>
+      <View style={{ width: chartWidth, height }}>
+        <Pressable onPressIn={handleTouch} onPressOut={handleTouchEnd}>
+          <View style={{ width: chartWidth, height }}>
+            <Svg width={chartWidth} height={height}>
         {/* Gradient definitions */}
         <Defs>
           <LinearGradient id="areaGradient" x1="0%" y1="10%" x2="0%" y2="100%">
@@ -191,45 +196,38 @@ export const SimpleLineChart: React.FC<SimpleLineChartProps> = ({
         {/* Tooltip */}
         {tooltip && (
           <>
-            {/* Turnover value */}
-            <SvgText
-              x={padding.left + 10}
-              y={height - 45}
-              fontSize="16"
-              fill={primaryColor}
-              textAnchor="start"
-              alignmentBaseline="middle"
-              fontWeight="bold"
-            >
-              {formatYLabel ? formatYLabel(tooltip.data.y) : tooltip.data.y.toFixed(0)}
-            </SvgText>
-            
-            {/* Date label */}
-            <SvgText
-              x={padding.left + 10}
-              y={height - 30}
-              fontSize="10"
-              fill={'#FFFFFF'}
-              textAnchor="start"
-              alignmentBaseline="middle"
-            >
-              {formatXLabel ? formatXLabel(tooltip.data.x) : tooltip.data.x.toString()}
-            </SvgText>
-            
-            {/* Selected point indicator */}
-            <Circle
-              cx={points[tooltip.pointIndex].x}
-              cy={points[tooltip.pointIndex].y}
-              r={6}
-              fill={'#FFFFFF'}
-              stroke={backgroundColor}
-              strokeWidth={2}
-            />
+            {(() => {
+              const pt = points[tooltip.pointIndex];
+              const tooltipWidth = 140;
+              const tooltipHeight = 44;
+              const minX = padding.left;
+              const maxX = chartWidth - tooltipWidth - 8;
+              const tx = Math.max(minX, Math.min(pt.x - tooltipWidth / 2, maxX));
+              const ty = Math.max(8, pt.y - tooltipHeight - 8);
+              return (
+                <>
+                  {/* Bubble */}
+                  <Rect x={tx} y={ty} width={tooltipWidth} height={tooltipHeight} rx={6} ry={6} fill={'#111827'} opacity={0.9} />
+                  {/* Value */}
+                  <SvgText x={tx + 8} y={ty + 18} fontSize="12" fill={'#F9FAFB'} fontWeight="bold">
+                    {formatYLabel ? formatYLabel(tooltip.data.y) : tooltip.data.y.toFixed(0)}
+                  </SvgText>
+                  {/* Label */}
+                  <SvgText x={tx + 8} y={ty + 32} fontSize="10" fill={'#D1D5DB'}>
+                    {formatXLabel ? formatXLabel(tooltip.data.x) : tooltip.data.x.toString()}
+                  </SvgText>
+                  {/* Selected point indicator */}
+                  <Circle cx={pt.x} cy={pt.y} r={6} fill={'#FFFFFF'} stroke={backgroundColor} strokeWidth={2} />
+                </>
+              );
+            })()}
           </>
         )}
 
-      </Svg>
-      </TouchableWithoutFeedback>
+            </Svg>
+          </View>
+        </Pressable>
+      </View>
     </View>
   );
 };

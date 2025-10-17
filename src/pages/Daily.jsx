@@ -1625,7 +1625,7 @@ const Daily = ({ selectedDate }) => {
         {/* 14 Day Turnover Chart */}
         <div className="card h-[300px]">
           <h3 className="text-xl font-semibold text-text-primary mb-4">14 Day Turnover</h3>
-          <div className="h-[220px]">
+          <div className="h-[160px]">
             {dailyTurnover14Days.labels.length > 0 ? (
               <Bar
                 data={{

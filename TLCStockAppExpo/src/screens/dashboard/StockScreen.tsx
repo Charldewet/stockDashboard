@@ -22,7 +22,9 @@ import { newPharmacyAPI } from '../../services/api';
 import { getPharmacyByCode } from '../../config/api';
 import { formatDateLocal, getYesterday, formatDateDisplay } from '../../utils/dateUtils';
 import { formatCurrency, formatPercentage, calculatePercentageChange } from '../../utils/formatUtils';
-import { TrendingUp, TrendingDown, AlertCircle, ChevronDown, Calendar, CheckCircle, AlertTriangle, Menu, LogOut, User, Bell, Shield, Settings, DollarSign, ShoppingCart, ShoppingBasket, Package, BarChart3, ChevronRight } from 'lucide-react-native';
+import { TrendingUp, TrendingDown, AlertCircle, ChevronDown, Calendar, CheckCircle, AlertTriangle, Menu, LogOut, User, Bell, Shield, Settings, DollarSign, ShoppingCart, ShoppingBasket, Package, BarChart3, ChevronRight, Moon, Sun } from 'lucide-react-native';
+import { useNotifications } from '../../contexts/NotificationsContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { API_CONFIG } from '../../config/api';
 
 const { width } = Dimensions.get('window');
@@ -50,42 +52,12 @@ const getPharmacyId = (pharmacyCode: string): number => {
   return 1;
 };
 
-// Color scheme matching web app
-const colors = {
-  // Background gradients
-  bgGradientFrom: '#111827',
-  bgGradientTo: '#0F172A',
-  
-  // Surface colors
-  surfacePrimary: '#1F2937',
-  surfaceSecondary: '#111827',
-  
-  // Text colors
-  textPrimary: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-  
-  // Accent colors
-  accentPrimary: '#FF4500',
-  accentPrimaryHover: '#E63E00',
-  accentPrimaryFocus: '#FFA500',
-  
-  // Status colors
-  statusSuccess: '#10B981',
-  statusWarning: '#F59E0B',
-  statusError: '#EF4444',
-  
-  // Chart colors
-  chartGold: '#FFD600',
-  chartCoquelicot: '#FF4509',
-  costSales: '#A0FC4E',
-  
-  // Border colors
-  border: '#374151',
-};
+const useColors = () => useTheme().colors;
 
 const StockScreen = () => {
   const navigation = useNavigation<AuthNavigationProp>();
   const { selectedPharmacy, pharmacies, setSelectedPharmacy, selectedDate, setSelectedDate, logout } = useAuth();
+  const { colors, themeMode, toggleTheme } = useTheme();
   
   // Selector states
   const [showPharmacyDropdown, setShowPharmacyDropdown] = useState(false);
@@ -93,6 +65,7 @@ const StockScreen = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [tempSelectedDate, setTempSelectedDate] = useState(selectedDate);
   const slideAnim = useRef(new Animated.Value(-width)).current;
+  const { unreadCount } = useNotifications();
 
   // Card expansion states
   const [stockValueCardExpanded, setStockValueCardExpanded] = useState(false);
@@ -1322,6 +1295,7 @@ const StockScreen = () => {
 
   const handleDateFromScroller = (d: Date) => setSelectedDate(d);
 
+  const styles = getStyles(colors);
   return (
     <View style={styles.container}>
       {(stockDataLoading || topMovingProductsLoading || lowGPProductsLoading || topSellersLoading || highStockLevelsLoading) && (
@@ -1348,13 +1322,25 @@ const StockScreen = () => {
             </TouchableOpacity>
           </View>
 
-          {/* Right side: Calendar Icon */}
-          <TouchableOpacity 
-            style={styles.dateButton} 
-            onPress={handleDatePickerOpen}
-          >
-            <Calendar size={20} color={colors.textSecondary} />
-          </TouchableOpacity>
+          {/* Right side: Calendar and Theme Toggle */}
+          <View style={styles.headerRightRow}>
+            <TouchableOpacity 
+              style={styles.iconButton}
+              onPress={handleDatePickerOpen}
+            >
+              <Calendar size={20} color={colors.textPrimary} />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.iconButton}
+              onPress={toggleTheme}
+            >
+              {themeMode === 'dark' ? (
+                <Sun size={20} color={colors.textPrimary} />
+              ) : (
+                <Moon size={20} color={colors.textPrimary} />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -1416,6 +1402,20 @@ const StockScreen = () => {
               >
                 <Settings size={20} color={colors.textPrimary} />
                 <Text style={styles.hamburgerMenuItemText}>Preferences</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.hamburgerMenuItem}
+                onPress={() => toggleTheme()}
+              >
+                {themeMode === 'dark' ? (
+                  <Sun size={20} color={colors.textPrimary} />
+                ) : (
+                  <Moon size={20} color={colors.textPrimary} />
+                )}
+                <Text style={styles.hamburgerMenuItemText}>
+                  {themeMode === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                </Text>
               </TouchableOpacity>
             </View>
             
@@ -2065,7 +2065,7 @@ const StockScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bgGradientFrom,
@@ -2083,7 +2083,7 @@ const styles = StyleSheet.create({
   },
   stickyHeader: {
     padding: 16,
-    paddingTop: 63,
+    paddingTop: 8,
     backgroundColor: colors.bgGradientFrom,
     zIndex: 1000,
   },
@@ -2114,6 +2114,31 @@ const styles = StyleSheet.create({
   },
   dateButton: {
     padding: 8,
+  },
+  headerRightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  iconButton: {
+    padding: 8,
+  },
+  badge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: colors.accentPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  badgeText: {
+    color: colors.bgGradientFrom,
+    fontSize: 10,
+    fontWeight: '700',
   },
   scrollContent: {
     flex: 1,

@@ -3,29 +3,17 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Platform,
 import { useNavigation } from '@react-navigation/native';
 import { ChevronLeft, Bell } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import ErrorAlert from '../../components/common/ErrorAlert';
 import { newPharmacyAPI } from '../../services/api';
 import { API_CONFIG } from '../../config/api';
-import { formatDateLocal } from '../../utils/dateUtils';
+import { formatDateLocal, getPreviousYearSameDayOfWeek } from '../../utils/dateUtils';
+import { saveNotificationSettings as saveNotificationSettingsAPI } from '../../services/pushApi';
 
-// Color scheme matching ReportingScreen
-const colors = {
-  bgGradientFrom: '#111827',
-  bgGradientTo: '#0F172A',
-  surfacePrimary: '#1F2937',
-  surfaceSecondary: '#111827',
-  textPrimary: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-  accentPrimary: '#FF4500',
-  border: '#374151',
-  statusSuccess: '#10B981',
-  statusError: '#EF4444',
-  statusWarning: '#F59E0B',
-  accentPurple: '#8B5CF6',
-};
+// theme hook
 
 type AuthNavigationProp = {
   navigate: (screen: string) => void;
@@ -34,7 +22,8 @@ type AuthNavigationProp = {
 
 const PreferencesScreen = () => {
   const navigation = useNavigation<AuthNavigationProp>();
-  const { pharmacies } = useAuth();
+  const { colors } = useTheme();
+  const { pharmacies, user, logout } = useAuth();
 
   const [dailySummariesEnabled, setDailySummariesEnabled] = useState(false);
   const [notificationTime, setNotificationTime] = useState('18:00');
@@ -48,6 +37,8 @@ const PreferencesScreen = () => {
   const [gpThreshold, setGpThreshold] = useState(0);
   const [showThresholdPicker, setShowThresholdPicker] = useState(false);
   const [tempThreshold, setTempThreshold] = useState<Date | null>(null);
+  const [selectedOperationalPharmacies, setSelectedOperationalPharmacies] = useState<Set<string>>(new Set());
+  const [operationalAlertsEnabled, setOperationalAlertsEnabled] = useState(false);
 
   // Save modal state (re-using shared ErrorAlert for consistent look)
   const [showSaveAlert, setShowSaveAlert] = useState(false);
@@ -59,19 +50,29 @@ const PreferencesScreen = () => {
     checkNotificationPermissions();
   }, []);
 
-  // Ensure default selection includes all pharmacies when none saved yet
+  // Ensure default selection includes only allowed pharmacies when none saved yet
   useEffect(() => {
-    if (pharmacies && pharmacies.length > 0) {
+    if (pharmacies && pharmacies.length > 0 && user) {
+      // Get user's allowed pharmacy codes
+      const allowedCodes = new Set(user.allowedPharmacies || []);
+      
+      // Filter pharmacies to only those the user can access
+      const allowedPharmacies = pharmacies.filter(p => allowedCodes.has(p.code));
+      
       if (selectedDailyPharmacies.size === 0) {
-        const all = new Set(pharmacies.map(p => p.code));
-        setSelectedDailyPharmacies(all);
+        const allowed = new Set(allowedPharmacies.map(p => p.code));
+        setSelectedDailyPharmacies(allowed);
       }
       if (selectedLowGPPharmacies.size === 0) {
-        const all = new Set(pharmacies.map(p => p.code));
-        setSelectedLowGPPharmacies(all);
+        const allowed = new Set(allowedPharmacies.map(p => p.code));
+        setSelectedLowGPPharmacies(allowed);
+      }
+      if (selectedOperationalPharmacies.size === 0) {
+        const allowed = new Set(allowedPharmacies.map(p => p.code));
+        setSelectedOperationalPharmacies(allowed);
       }
     }
-  }, [pharmacies]);
+  }, [pharmacies, user]);
 
   const checkNotificationPermissions = async () => {
     try {
@@ -100,21 +101,50 @@ const PreferencesScreen = () => {
       const settings = await AsyncStorage.getItem('notificationSettings');
       if (settings) {
         const parsed = JSON.parse(settings);
-        setDailySummariesEnabled(!!parsed.dailySummariesEnabled);
-        if (parsed.notificationTime) setNotificationTime(parsed.notificationTime);
-        // Backward compatibility: if old selectedPharmacies exists, use for both
-        if (Array.isArray(parsed.selectedDailyPharmacies)) {
+
+        // Enabled flags (new shape first, fallback to legacy)
+        setDailySummariesEnabled(Boolean(parsed?.dailySummary?.enabled ?? parsed?.dailySummariesEnabled));
+        setLowGPAlertsEnabled(Boolean(parsed?.lowGpAlerts?.enabled ?? parsed?.lowGPAlertsEnabled));
+        setOperationalAlertsEnabled(Boolean(parsed?.operationalAlerts?.enabled));
+
+        // Time selection (new shape first, fallback to legacy)
+        if (parsed?.dailySummary?.time) {
+          setNotificationTime(String(parsed.dailySummary.time));
+        } else if (parsed?.lowGpAlerts?.time) {
+          setNotificationTime(String(parsed.lowGpAlerts.time));
+        } else if (parsed?.operationalAlerts?.time) {
+          setNotificationTime(String(parsed.operationalAlerts.time));
+        } else if (parsed?.notificationTime) {
+          setNotificationTime(parsed.notificationTime);
+        }
+
+        // Selected pharmacies (new shape uses numeric IDs)
+        if (Array.isArray(parsed?.dailySummary?.pharmacyIds)) {
+          setSelectedDailyPharmacies(new Set(parsed.dailySummary.pharmacyIds.map((id: any) => String(id))));
+        } else if (Array.isArray(parsed?.selectedDailyPharmacies)) {
           setSelectedDailyPharmacies(new Set(parsed.selectedDailyPharmacies.map(String)));
-        } else if (Array.isArray(parsed.selectedPharmacies)) {
+        } else if (Array.isArray(parsed?.selectedPharmacies)) {
           setSelectedDailyPharmacies(new Set(parsed.selectedPharmacies.map(String)));
         }
-        if (Array.isArray(parsed.selectedLowGPPharmacies)) {
+
+        if (Array.isArray(parsed?.lowGpAlerts?.pharmacyIds)) {
+          setSelectedLowGPPharmacies(new Set(parsed.lowGpAlerts.pharmacyIds.map((id: any) => String(id))));
+        } else if (Array.isArray(parsed?.selectedLowGPPharmacies)) {
           setSelectedLowGPPharmacies(new Set(parsed.selectedLowGPPharmacies.map(String)));
-        } else if (Array.isArray(parsed.selectedPharmacies)) {
+        } else if (Array.isArray(parsed?.selectedPharmacies)) {
           setSelectedLowGPPharmacies(new Set(parsed.selectedPharmacies.map(String)));
         }
-        setLowGPAlertsEnabled(!!parsed.lowGPAlertsEnabled);
-        if (parsed.gpThreshold) setGpThreshold(parsed.gpThreshold);
+
+        if (Array.isArray(parsed?.operationalAlerts?.pharmacyIds)) {
+          setSelectedOperationalPharmacies(new Set(parsed.operationalAlerts.pharmacyIds.map((id: any) => String(id))));
+        }
+
+        // Threshold (new shape first)
+        if (typeof parsed?.lowGpAlerts?.threshold === 'number') {
+          setGpThreshold(parsed.lowGpAlerts.threshold);
+        } else if (parsed?.gpThreshold) {
+          setGpThreshold(parsed.gpThreshold);
+        }
       }
     } catch {}
   };
@@ -129,23 +159,82 @@ const PreferencesScreen = () => {
     let scheduledCount = 0;
     for (const pharmacy of selected) {
       try {
+        // Map code→id (same quick map used elsewhere; fallback to numeric string)
+        const map: any = { 'REITZ': 1, 'TLC WINTERTON': 2 };
+        const pharmacyId = map[pharmacy.code] || Number(pharmacy.code) || 1;
+
+        // Fetch today's data to embed in expanded banner
+        const today = new Date();
+        const dateStr = formatDateLocal(today);
+        let turnover = 0;
+        let gpPct = 0;
+        let dispPct: number | null = null;
+        let growthPct: number | null = null;
+        try {
+          const daily = await newPharmacyAPI.getDailyTurnover(pharmacyId, dateStr);
+          turnover = Number(daily?.turnover || 0);
+          gpPct = Number(daily?.gp_pct || daily?.grossProfitPercent || 0);
+          if (daily?.disp_pct != null) {
+            dispPct = Number(daily.disp_pct);
+          } else if (daily?.turnover && daily?.dispensary_turnover) {
+            dispPct = (Number(daily.dispensary_turnover) / Number(daily.turnover)) * 100;
+          }
+          // Previous-year comparable day for growth
+          const currentYear = today.getFullYear();
+          if (currentYear > 2024) {
+            const prev = getPreviousYearSameDayOfWeek(today);
+            if (prev) {
+              try {
+                const prevDaily = await newPharmacyAPI.getDailyTurnover(pharmacyId, formatDateLocal(prev));
+                const prevTurnover = Number(prevDaily?.turnover || 0);
+                if (prevTurnover > 0 && turnover > 0) {
+                  growthPct = ((turnover - prevTurnover) / prevTurnover) * 100;
+                }
+              } catch {}
+            }
+          }
+        } catch (err) {
+          console.warn('Failed to fetch daily summary data for notification:', err);
+        }
+
+        // Build multiline body for iOS expanded banner
+        const lines: string[] = [];
+        lines.push(`• Turnover: R ${Number(turnover || 0).toLocaleString()}`);
+        if (growthPct != null) {
+          const sign = growthPct >= 0 ? '+' : '';
+          lines.push(`• Growth vs PY: ${sign}${growthPct.toFixed(1)}%`);
+        }
+        lines.push(`• GP%: ${gpPct.toFixed(1)}%`);
+        if (dispPct != null) {
+          lines.push(`• Dispensary%: ${dispPct.toFixed(1)}%`);
+        }
+        const body = lines.join('\n');
+
+        // Schedule for the next occurrence of selected time (DATE trigger)
+        const now = new Date();
+        const fireTime = new Date();
+        fireTime.setHours(hours, minutes, 0, 0);
+        if (fireTime <= now) { fireTime.setDate(fireTime.getDate() + 1); }
+
         const notificationId = `daily-summary-${pharmacy.code}-${Date.now()}`;
         const id = await Notifications.scheduleNotificationAsync({
           identifier: notificationId,
           content: {
             title: 'TLC PharmaSight',
-            body: `Daily Summary for ${pharmacy.name}`,
-            data: { type: 'DAILY_SUMMARY', pharmacyCode: pharmacy.code, pharmacyName: pharmacy.name },
+            subtitle: `Daily Summary for ${pharmacy.name}`,
+            body,
+            data: {
+              type: 'DAILY_SUMMARY',
+              pharmacyCode: pharmacy.code,
+              pharmacyName: pharmacy.name,
+              summary: { turnover, gpPct, dispPct, growthPct },
+            },
             categoryIdentifier: 'DAILY_SUMMARY',
           },
-          trigger: {
-            type: Notifications.SchedulableTriggerInputTypes.DAILY,
-            hour: hours,
-            minute: minutes,
-          },
+          trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: fireTime },
         });
         scheduledCount += 1;
-        console.log(`✅ Scheduled repeating daily summary (${id}) for ${pharmacy.name} at ${hours}:${minutes}`);
+        console.log(`✅ Scheduled daily summary (${id}) for ${pharmacy.name} at ${fireTime.toLocaleString()}`);
       } catch (error) {
         console.error(`❌ Failed to schedule daily summary for ${pharmacy.name}:`, error);
       }
@@ -153,8 +242,14 @@ const PreferencesScreen = () => {
     return scheduledCount;
   };
 
-  const cancelDailyNotifications = async () => {
-    await Notifications.cancelAllScheduledNotificationsAsync();
+  const clearAllScheduledNotifications = async () => {
+    try {
+      // Cancel all existing scheduled notifications to prevent duplicates
+      await Notifications.cancelAllScheduledNotificationsAsync();
+      console.log("✅ Cleared all existing scheduled notifications");
+    } catch (error) {
+      console.warn("Failed to clear scheduled notifications:", error);
+    }
   };
 
   const scheduleLowGPNotifications = async (): Promise<number> => {
@@ -314,6 +409,42 @@ const PreferencesScreen = () => {
     return scheduledCount;
   };
 
+  const scheduleOperationalNotifications = async (): Promise<number> => {
+    if (!operationalAlertsEnabled) return 0;
+
+    const selected = pharmacies.filter(p => selectedOperationalPharmacies.has(p.code));
+    let scheduledCount = 0;
+    try {
+      const [hours, minutes] = notificationTime.split(':').map(Number);
+      for (const pharmacy of selected) {
+        const notificationId = `operational-alert-${pharmacy.code}-${Date.now()}`;
+        const id = await Notifications.scheduleNotificationAsync({
+          identifier: notificationId,
+          content: {
+            title: 'TLC PharmaSight - Operational',
+            body: `Operational insights for ${pharmacy.name}`,
+            data: {
+              type: 'OPERATIONAL_ALERT',
+              pharmacyCode: pharmacy.code,
+              pharmacyName: pharmacy.name,
+            },
+            categoryIdentifier: 'OPERATIONAL_ALERT',
+          },
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DAILY,
+            hour: hours,
+            minute: minutes,
+          },
+        });
+        scheduledCount += 1;
+        console.log(`✅ Scheduled operational alert (${id}) for ${pharmacy.name} at ${hours}:${minutes}`);
+      }
+    } catch (e) {
+      console.warn('Failed to schedule operational alerts:', e);
+    }
+    return scheduledCount;
+  };
+
   // Function to check current device time and timezone
   const checkDeviceTime = () => {
     const now = new Date();
@@ -376,42 +507,101 @@ const PreferencesScreen = () => {
     }
   };
 
-  const saveNotificationSettings = async () => {
+    const saveNotificationSettings = async () => {
     try {
-      const settings = { 
-        dailySummariesEnabled, 
-        notificationTime, 
-        selectedDailyPharmacies: Array.from(selectedDailyPharmacies),
-        selectedLowGPPharmacies: Array.from(selectedLowGPPharmacies),
+      console.log('PREFERENCES:SAVE_START', {
+        dailySummariesEnabled,
         lowGPAlertsEnabled,
+        operationalAlertsEnabled,
+        notificationTime,
         gpThreshold,
-      };
-      await AsyncStorage.setItem('notificationSettings', JSON.stringify(settings));
-      await checkNotificationPermissions();
-      // Cancel existing notifications to avoid duplicates
-      await Notifications.cancelAllScheduledNotificationsAsync();
-      const dailyCount = await scheduleDailyNotifications();
-      const lowGPCount = await scheduleLowGPNotifications();
-      // Small delay to ensure scheduling completes before counting
-      await new Promise(resolve => setTimeout(resolve, 100));
-      const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-      console.log(`🗓️ Final scheduled count: ${scheduled.length}, Daily attempted: ${dailyCount}, Low GP attempted: ${lowGPCount}`);
-      
-      // Debug: Log details of scheduled notifications
-      scheduled.forEach((notif, index) => {
-        console.log(`📅 Notification ${index + 1}:`, {
-          identifier: notif.identifier,
-          trigger: notif.trigger,
-          content: { title: notif.content.title, body: notif.content.body }
-        });
+        selectedDailyCount: selectedDailyPharmacies.size,
+        selectedLowGPCount: selectedLowGPPharmacies.size,
+        selectedOperationalCount: selectedOperationalPharmacies.size,
       });
       
+      // Use user data from component level (already destructured from useAuth())
+      console.log('PREFERENCES:USER_DEBUG', { user: user?.username, allowedPharmacies: user?.allowedPharmacies });
+      
+      const allowedCodes = new Set(user?.allowedPharmacies || []);
+      
+      console.log('PREFERENCES:SAVE_DEBUG', {
+        user: user?.username,
+        allowedPharmacies: user?.allowedPharmacies,
+        selectedDaily: Array.from(selectedDailyPharmacies),
+        selectedLowGP: Array.from(selectedLowGPPharmacies),
+        selectedOperational: Array.from(selectedOperationalPharmacies),
+        allPharmacies: pharmacies.map(p => ({ code: p.code, name: p.name }))
+      });
+      
+      // Filter selections to only include allowed pharmacies
+      const filteredDailyPharmacies = Array.from(selectedDailyPharmacies).filter(code => allowedCodes.has(code));
+      const filteredLowGPPharmacies = Array.from(selectedLowGPPharmacies).filter(code => allowedCodes.has(code));
+      const filteredOperationalPharmacies = Array.from(selectedOperationalPharmacies).filter(code => allowedCodes.has(code));
+      
+      console.log('PREFERENCES:FILTERED_DEBUG', {
+        filteredDaily: filteredDailyPharmacies,
+        filteredLowGP: filteredLowGPPharmacies,
+        filteredOperational: filteredOperationalPharmacies
+      });
+      
+      // If no pharmacies are selected for a given section, force-disable that section to satisfy backend validation
+      const effectiveDailyEnabled = dailySummariesEnabled && filteredDailyPharmacies.length > 0;
+      const effectiveLowGPEnabled = lowGPAlertsEnabled && filteredLowGPPharmacies.length > 0;
+      const effectiveOperationalEnabled = operationalAlertsEnabled && filteredOperationalPharmacies.length > 0;
+      
+      // Build backend payload using filtered pharmacyIds (ints)
+      const toIds = (codes: string[]) => codes.map(code => Number(code)).filter(n => Number.isFinite(n));
+      const payload = {
+        dailySummary: {
+          enabled: effectiveDailyEnabled,
+          time: notificationTime,
+          pharmacyIds: toIds(filteredDailyPharmacies),
+        },
+        lowGpAlerts: {
+          enabled: effectiveLowGPEnabled,
+          time: notificationTime,
+          pharmacyIds: toIds(filteredLowGPPharmacies),
+          threshold: Number(gpThreshold) || 0,
+        },
+        operationalAlerts: {
+          enabled: effectiveOperationalEnabled,
+          time: notificationTime,
+          pharmacyIds: toIds(filteredOperationalPharmacies),
+        }
+      } as const;
+      console.log('PREFERENCES:PAYLOAD_DEBUG', payload);
+
+      // Persist locally for UI restore only
+      await AsyncStorage.setItem('notificationSettings', JSON.stringify(payload));
+      // Clear all existing notifications before scheduling new ones
+      await clearAllScheduledNotifications();
+
+      // Call backend to save settings (server computes snapshots at send-time)
+      const res = await saveNotificationSettingsAPI(payload as any);
+
+      // Best-effort local scheduling so alerts appear even if backend push is delayed
+      try {
+        await scheduleOperationalNotifications();
+      } catch {}
+
       setSaveAlertTitle('Settings Saved');
-      setSaveAlertMessage(`Daily: ${dailyCount}, Low GP: ${lowGPCount}. Total queued: ${scheduled.length}. Will trigger at ${notificationTime}.`);
+      setSaveAlertMessage(`Notifications configured for ${notificationTime}. Server will send fresh data at the selected time.`);
       setShowSaveAlert(true);
-    } catch {
+
+    } catch (e: any) {
+      console.error('PREFERENCES:SAVE_ERROR', e);
+      const status = e?.response?.status;
+      const serverMessage = e?.response?.data?.message || e?.response?.data?.error || e?.message;
+      if (status === 401) {
+        setSaveAlertTitle('Session Expired');
+        setSaveAlertMessage('Your session has expired. Please sign in again.');
+        setShowSaveAlert(true);
+        try { await logout(); } catch {}
+        return;
+      }
       setSaveAlertTitle('Save Failed');
-      setSaveAlertMessage('Failed to save notification settings. Please try again.');
+      setSaveAlertMessage(serverMessage ? String(serverMessage) : 'Failed to save notification settings. Please check your inputs and try again.');
       setShowSaveAlert(true);
     }
   };
@@ -482,6 +672,16 @@ const PreferencesScreen = () => {
     });
   };
 
+  const toggleOperationalPharmacy = (code: string) => {
+    setSelectedOperationalPharmacies(prev => {
+      const next = new Set(prev);
+      if (next.has(code)) next.delete(code);
+      else next.add(code);
+      return next;
+    });
+  };
+
+  const styles = getStyles(colors);
   return (
     <View style={styles.container}>
       {/* Sticky Header (same pattern as ReportingScreen) */}
@@ -618,11 +818,45 @@ const PreferencesScreen = () => {
           )}
         </View>
 
+        {/* Operational Alerts Toggle */}
+        <View style={styles.cardSection}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.cardSectionTitle}>Operational Alerts</Text>
+            <Switch
+              value={operationalAlertsEnabled}
+              onValueChange={setOperationalAlertsEnabled}
+              trackColor={{ false: colors.border, true: colors.accentPrimary }}
+              thumbColor={operationalAlertsEnabled ? colors.bgGradientFrom : '#9CA3AF'}
+              disabled={!notificationsEnabled}
+            />
+          </View>
+
+          {operationalAlertsEnabled && (
+            <>
+              <View style={styles.settingCard}>
+                <Text style={styles.settingDescription}>
+                  Get operational insights from the Daily screen as notifications
+                </Text>
+                {pharmacies.map((p) => (
+                  <View key={p.code} style={styles.pharmacyItem}>
+                    <Text style={styles.pharmacyName}>{p.name}</Text>
+                    <Switch
+                      value={selectedOperationalPharmacies.has(p.code)}
+                      onValueChange={() => toggleOperationalPharmacy(p.code)}
+                      trackColor={{ false: colors.border, true: colors.accentPrimary }}
+                      thumbColor={selectedOperationalPharmacies.has(p.code) ? colors.bgGradientFrom : '#9CA3AF'}
+                    />
+                  </View>
+                ))}
+              </View>
+            </>
+          )}
+        </View>
+
         {/* Action Button (purple, like Reporting screen) */}
         <TouchableOpacity
           style={[styles.purpleActionButton, !notificationsEnabled && { opacity: 0.6 }]}
           onPress={saveNotificationSettings}
-          disabled={!notificationsEnabled}
         >
           <View style={styles.leftIconContainerPurple}>
             <Bell size={18} color={colors.bgGradientFrom} />
@@ -722,7 +956,7 @@ const PreferencesScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bgGradientFrom,

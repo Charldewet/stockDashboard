@@ -317,7 +317,7 @@ class AnalyticsService:
                 total_value_12m = float(product.total_value_12m or 0)
                 
                 # Calculate daily average from 12-month total
-                avg_daily_sales = total_sales_12m / 365 if total_sales_12m > 0 else 0
+                avg_daily_sales = total_sales_12m / 282 if total_sales_12m > 0 else 0
                 
                 # Only recommend if product has movement and current stock
                 if current_soh > 0 and total_sales_12m > 0 and avg_daily_sales > 0:
@@ -341,7 +341,7 @@ class AnalyticsService:
                         note = "High volume item - recommended 14+ days stock" if is_high_moving else ""
                         
                         # Calculate sales frequency (approximate)
-                        sales_frequency = min(total_sales_12m / 365, 1.0)  # Max 1 sale per day average
+                        sales_frequency = min(total_sales_12m / 282, 1.0)  # Max 1 sale per day average
                         
                         recommendations.append({
                             'productName': product.description,
@@ -414,7 +414,7 @@ class AnalyticsService:
             
             alerts = []
             for product in overstock_items:
-                daily_avg_sales = float(product.sales_qty) / 365  # Convert to daily average
+                daily_avg_sales = float(product.sales_qty) / 282  # Convert to daily average
                 current_soh = float(product.on_hand or 0)
                 
                 # Calculate GP percentage
@@ -468,7 +468,7 @@ class AnalyticsService:
                     # Only include if potential savings is at least R500
                     if potential_savings >= 500:
                         # Calculate days since last sale (rough estimate)
-                        days_since_last_sale = max(1, 365 - min(float(product.sales_qty) * 5, 350)) if float(product.sales_qty) > 0 else 365
+                        days_since_last_sale = max(1, 282 - min(float(product.sales_qty) * 5, 270)) if float(product.sales_qty) > 0 else 282
                         
                         alerts.append({
                             'productName': product.description,
@@ -881,11 +881,11 @@ class AnalyticsService:
                     DailySales.sale_date == baseline_marker_date,
                     DailySales.sales_qty > 0
                 )
-            ).order_by(desc(DailySales.sales_qty / 365)).limit(limit).all()  # Daily average over 12 months
+            ).order_by(desc(DailySales.sales_qty / 282)).limit(limit).all()  # Daily average over 12 months
             
             products = []
             for product in best_sellers:
-                daily_avg_sales = float(product.sales_qty) / 365  # Convert to daily average
+                daily_avg_sales = float(product.sales_qty) / 282  # Convert to daily average
                 products.append({
                     'productName': product.description,
                     'stockCode': product.stock_code,
@@ -940,7 +940,7 @@ class AnalyticsService:
             
             products = []
             for product in slowest_sellers:
-                daily_avg_sales = float(product.sales_qty) / 365  # Convert to daily average
+                daily_avg_sales = float(product.sales_qty) / 282  # Convert to daily average
                 
                 # Calculate GP percentage
                 if float(product.sales_value) > 0:
@@ -1019,8 +1019,8 @@ class AnalyticsService:
             
             products = []
             for product in stock_levels:
-                # Calculate daily average sales from 12-month total
-                daily_avg_sales = float(product.sales_qty) / 365 if float(product.sales_qty) > 0 else 0
+                # Calculate daily average sales from 12-month total (282 business days per year)
+                daily_avg_sales = float(product.sales_qty) / 282 if float(product.sales_qty) > 0 else 0
                 
                 # Calculate days of stock on hand
                 current_soh = float(product.on_hand or 0)

@@ -6,18 +6,9 @@ import {
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const { width } = Dimensions.get('window');
-
-// Color scheme matching the app
-const colors = {
-  bgGradientFrom: '#111827',
-  surfacePrimary: '#1F2937',
-  textPrimary: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-  accentPrimary: '#FF4500',
-  border: '#374151',
-};
 
 interface CustomDatePickerProps {
   value: Date;
@@ -32,6 +23,7 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
   minimumDate = new Date(2020, 0, 1),
   maximumDate = new Date(),
 }) => {
+  const { colors } = useTheme();
   const [currentMonth, setCurrentMonth] = useState<number>(value.getMonth());
   const [currentYear, setCurrentYear] = useState<number>(value.getFullYear());
   const [selectedDate, setSelectedDate] = useState<Date>(value);
@@ -113,6 +105,7 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
   };
 
   const calendarDays = generateCalendarDays();
+  const styles = getStyles(colors);
 
   return (
     <View style={styles.container}>
@@ -183,18 +176,19 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     width: '100%',
     alignItems: 'center',
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
+    justifyContent: 'center',
     alignItems: 'center',
     width: '100%',
     marginBottom: 15,
     paddingHorizontal: 20,
+    gap: 10,
   },
   headerText: {
     fontSize: 18,

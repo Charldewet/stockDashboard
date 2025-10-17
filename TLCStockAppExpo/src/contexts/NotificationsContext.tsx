@@ -32,7 +32,20 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
         const raw = await AsyncStorage.getItem(STORAGE_KEY);
         if (raw) {
           const parsed: InAppNotification[] = JSON.parse(raw);
-          setNotifications(Array.isArray(parsed) ? parsed : []);
+          if (Array.isArray(parsed)) {
+            // Filter out notifications with invalid timestamps (like 1970 dates)
+            const minValidDate = new Date('2020-01-01').getTime();
+            const validNotifications = parsed.filter(notification => 
+              notification.createdAt && notification.createdAt > minValidDate
+            );
+            setNotifications(validNotifications);
+            
+            // If we filtered out invalid notifications, save the cleaned list
+            if (validNotifications.length !== parsed.length) {
+              console.log('Cleaned up', parsed.length - validNotifications.length, 'invalid notifications');
+              AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(validNotifications)).catch(() => {});
+            }
+          }
         }
       } catch {}
     })();
@@ -43,6 +56,13 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
   }, [notifications]);
 
   const addNotification = (n: InAppNotification) => {
+    // Validate timestamp to prevent 1970 dates
+    const minValidDate = new Date('2020-01-01').getTime();
+    if (!n.createdAt || n.createdAt < minValidDate) {
+      console.warn('Rejecting notification with invalid timestamp:', n.createdAt);
+      return;
+    }
+    
     setNotifications(prev => [n, ...prev.filter(p => p.id !== n.id)]);
   };
 
@@ -57,28 +77,55 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
       const Notifications = require('expo-notifications');
       const scheduled = await Notifications.getAllScheduledNotificationsAsync();
       const now = Date.now();
+      const minValidDate = new Date('2020-01-01').getTime();
       
       // Check for notifications that should have been received recently
       for (const notification of scheduled) {
         const trigger = notification.trigger as any;
         if (trigger && trigger.date) {
           const scheduledTime = new Date(trigger.date).getTime();
+          
+          // Validate scheduled time first
+          if (isNaN(scheduledTime) || scheduledTime < minValidDate) {
+            continue; // Skip invalid dates
+          }
+          
           const timeDiff = now - scheduledTime;
           
           // If notification was scheduled for more than 1 minute ago but less than 24 hours ago
           if (timeDiff > 60000 && timeDiff < 86400000) {
             const data: any = notification.content.data || {};
             const type = data?.type;
+            const title = notification.content.title || 'TLC PharmaSight';
+            const body = notification.content.body || '';
             
-            if (type === 'DAILY_SUMMARY' || type === 'LOW_GP_ALERT') {
+            // Handle all notification types, not just daily and low GP
+            if (type === 'DAILY_SUMMARY') {
               const code = String(data?.pharmacyCode || '');
               const name = String(data?.pharmacyName || 'Pharmacy');
-              const title = type === 'DAILY_SUMMARY' ? 'TLC PharmaSight' : 'TLC PharmaSight - Low GP Alert';
-              const body = type === 'DAILY_SUMMARY' ? `Daily Summary for ${name}` : `Low GP products for ${name}`;
-              
-              // Add to alerts tab if not already present
               addNotification({
-                id: `${type === 'DAILY_SUMMARY' ? 'daily' : 'lowgp'}-${notification.identifier}-${code}`,
+                id: `daily-${notification.identifier}-${code}`,
+                title: 'TLC PharmaSight',
+                body: `Daily Summary for ${name}`,
+                data,
+                createdAt: scheduledTime,
+                read: false,
+              });
+            } else if (type === 'LOW_GP_ALERT') {
+              const code = String(data?.pharmacyCode || '');
+              const name = String(data?.pharmacyName || 'Pharmacy');
+              addNotification({
+                id: `lowgp-${notification.identifier}-${code}`,
+                title: 'TLC PharmaSight - Low GP Alert',
+                body: `Low GP products for ${name}`,
+                data,
+                createdAt: scheduledTime,
+                read: false,
+              });
+            } else {
+              // Handle all other types (broadcasts, promotions, etc.) - they'll get colored via normalizeType
+              addNotification({
+                id: `generic-${notification.identifier}`,
                 title,
                 body,
                 data,

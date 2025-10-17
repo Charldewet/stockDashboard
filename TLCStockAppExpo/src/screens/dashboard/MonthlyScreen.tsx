@@ -18,6 +18,7 @@ import { AuthNavigationProp } from '../../types/navigation';
 import LineChart, { LineChartDataPoint } from '../../components/common/LineChart';
 import SimpleLineChart from '../../components/common/SimpleLineChart';
 import ErrorAlert from '../../components/common/ErrorAlert';
+import PlaceholderChart from '../../components/common/PlaceholderChart';
 import CustomDatePicker from '../../components/common/CustomDatePicker';
 import DateScroller from '../../components/common/DateScroller';
 import { useAuth } from '../../contexts/AuthContext';
@@ -25,7 +26,9 @@ import { newPharmacyAPI } from '../../services/api';
 import { getPharmacyByCode } from '../../config/api';
 import { formatDateLocal, getYesterday, formatDateDisplay } from '../../utils/dateUtils';
 import { formatCurrency, formatPercentage, calculatePercentageChange } from '../../utils/formatUtils';
-import { TrendingUp, TrendingDown, AlertCircle, ChevronDown, Calendar, CheckCircle, AlertTriangle, Menu, LogOut, User, Bell, Shield, Settings, DollarSign, ShoppingCart, ShoppingBasket, BarChart3, ChevronRight } from 'lucide-react-native';
+import { TrendingUp, TrendingDown, AlertCircle, ChevronDown, Calendar, CheckCircle, AlertTriangle, Menu, LogOut, User, Bell, Shield, Settings, DollarSign, ShoppingCart, ShoppingBasket, BarChart3, ChevronRight, Moon, Sun } from 'lucide-react-native';
+import { useNotifications } from '../../contexts/NotificationsContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import DoubleLineChart from '../../components/common/DoubleLineChart';
 import SimpleBarChart from '../../components/common/SimpleBarChart';
 
@@ -163,45 +166,36 @@ const getAlerts = (data: MonthlyData, previousYearData: MonthlyData | null) => {
     }
   }
 
+  // 3b. Purchases vs Sales - highlight high purchasing relative to sales
+  if (data.turnover > 0 && data.purchases > 0) {
+    const purchasesVsSales = (data.purchases / data.turnover) * 100;
+    if (purchasesVsSales > 90) {
+      alerts.push({
+        severity: 'critical',
+        icon: AlertCircle,
+        title: 'Purchases vs Sales Too High',
+        description: `${purchasesVsSales.toFixed(1)}% of turnover spent on purchases`
+      });
+    } else if (purchasesVsSales > 75) {
+      alerts.push({
+        severity: 'warning',
+        icon: AlertTriangle,
+        title: 'High Purchases vs Sales',
+        description: `${purchasesVsSales.toFixed(1)}% of turnover spent on purchases`
+      });
+    }
+  }
+
   return alerts;
 };
 
-// Color scheme matching web app
-const colors = {
-  // Background gradients
-  bgGradientFrom: '#111827',
-  bgGradientTo: '#0F172A',
-  
-  // Surface colors
-  surfacePrimary: '#1F2937',
-  surfaceSecondary: '#111827',
-  
-  // Text colors
-  textPrimary: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-  
-  // Accent colors
-  accentPrimary: '#FF4500',
-  accentPrimaryHover: '#E63E00',
-  accentPrimaryFocus: '#FFA500',
-  
-  // Status colors
-  statusSuccess: '#10B981',
-  statusWarning: '#F59E0B',
-  statusError: '#EF4444',
-  
-  // Chart colors
-  chartGold: '#FFD600',
-  chartCoquelicot: '#FF4509',
-  costSales: '#A0FC4E',
-  
-  // Border colors
-  border: '#374151',
-};
+// theme via context
+const useColors = () => useTheme().colors;
 
 const MonthlyScreen = () => {
   const navigation = useNavigation<AuthNavigationProp>();
   const { selectedPharmacy, pharmacies, setSelectedPharmacy, selectedDate, setSelectedDate, logout } = useAuth();
+  const { colors, themeMode, toggleTheme } = useTheme();
   
   // State for monthly data
   const [monthlyData, setMonthlyData] = useState<MonthlyData | null>(null);
@@ -229,6 +223,7 @@ const MonthlyScreen = () => {
   const [costOfSalesCardExpanded, setCostOfSalesCardExpanded] = useState(false);
   const [basketCardExpanded, setBasketCardExpanded] = useState(false);
   const [scriptsCardExpanded, setScriptsCardExpanded] = useState(false);
+  const { unreadCount } = useNotifications();
 
   const handlePharmacyChange = (pharmacyCode: string) => {
     setSelectedPharmacy(pharmacyCode);
@@ -662,6 +657,7 @@ const MonthlyScreen = () => {
   // Date change via horizontal scroller
   const handleDateFromScroller = (d: Date) => setSelectedDate(d);
 
+  const styles = getStyles(colors);
   return (
     <View style={styles.container}>
       {(loading || backgroundLoading) && (
@@ -689,13 +685,25 @@ const MonthlyScreen = () => {
             </TouchableOpacity>
           </View>
 
-          {/* Right side: Calendar Icon */}
-          <TouchableOpacity 
-            style={styles.dateButton} 
-            onPress={handleDatePickerOpen}
-          >
-            <Calendar size={20} color={colors.textSecondary} />
-          </TouchableOpacity>
+          {/* Right side: Calendar and Theme Toggle */}
+          <View style={styles.headerRightRow}>
+            <TouchableOpacity 
+              style={styles.iconButton}
+              onPress={handleDatePickerOpen}
+            >
+              <Calendar size={20} color={colors.textPrimary} />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.iconButton}
+              onPress={toggleTheme}
+            >
+              {themeMode === 'dark' ? (
+                <Sun size={20} color={colors.textPrimary} />
+              ) : (
+                <Moon size={20} color={colors.textPrimary} />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -757,6 +765,20 @@ const MonthlyScreen = () => {
               >
                 <Settings size={20} color={colors.textPrimary} />
                 <Text style={styles.hamburgerMenuItemText}>Preferences</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.hamburgerMenuItem}
+                onPress={() => toggleTheme()}
+              >
+                {themeMode === 'dark' ? (
+                  <Sun size={20} color={colors.textPrimary} />
+                ) : (
+                  <Moon size={20} color={colors.textPrimary} />
+                )}
+                <Text style={styles.hamburgerMenuItemText}>
+                  {themeMode === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                </Text>
               </TouchableOpacity>
             </View>
             
@@ -973,6 +995,19 @@ const MonthlyScreen = () => {
                 <View style={styles.costOfSalesDetailRow}>
                   <Text style={styles.costOfSalesDetailLabel}>Purchases</Text>
                   <Text style={styles.costOfSalesDetailValue}>{backgroundLoading ? '...' : formatCurrency(monthlyData?.purchases || 0)}</Text>
+                </View>
+                <View style={styles.costOfSalesSeparator} />
+                <View style={styles.costOfSalesSubDetailRow}>
+                  <Text style={styles.costOfSalesSubDetailLabel}>% Purchases vs Sales</Text>
+                  <Text style={[styles.costOfSalesSubDetailValue, { color: (!backgroundLoading && monthlyData && (monthlyData.turnover || 0) > 0 && ((monthlyData.purchases || 0) / (monthlyData.turnover || 1) * 100) > 90) ? colors.statusError : (!backgroundLoading && monthlyData && (monthlyData.turnover || 0) > 0 && ((monthlyData.purchases || 0) / (monthlyData.turnover || 1) * 100) > 75) ? colors.statusWarning : colors.textPrimary }]}>
+                    {backgroundLoading ? '...' : (((monthlyData?.turnover || 0) > 0 ? ((monthlyData?.purchases || 0) / (monthlyData?.turnover || 1)) * 100 : 0).toFixed(1) + '%')}
+                  </Text>
+                </View>
+                <View style={styles.costOfSalesSubDetailRow}>
+                  <Text style={styles.costOfSalesSubDetailLabel}>% Purchases vs CoS</Text>
+                  <Text style={[styles.costOfSalesSubDetailValue, { color: (!backgroundLoading && monthlyData && (monthlyData.costOfSales || 0) > 0 && ((monthlyData.purchases || 0) / (monthlyData.costOfSales || 1) * 100) > 100) ? colors.statusError : (!backgroundLoading && monthlyData && (monthlyData.costOfSales || 0) > 0 && ((monthlyData.purchases || 0) / (monthlyData.costOfSales || 1) * 100) > 90) ? colors.statusWarning : colors.textPrimary }]}>
+                    {backgroundLoading ? '...' : (((monthlyData?.costOfSales || 0) > 0 ? ((monthlyData?.purchases || 0) / (monthlyData?.costOfSales || 1)) * 100 : 0).toFixed(1) + '%')}
+                  </Text>
                 </View>
               </View>
             )}
@@ -1227,7 +1262,7 @@ const MonthlyScreen = () => {
         
         {/* Trends Container */}
         <View style={styles.trendsContainer}>
-          {cumulativeTurnoverData.length > 0 ? (
+          {cumulativeTurnoverData.length >= 2 ? (
             <View style={[styles.lineChartContainer, { alignItems: 'center' }]}>
               <DoubleLineChart
                 data1={cumulativeTurnoverData.map((item: any, index: number) => ({
@@ -1240,9 +1275,8 @@ const MonthlyScreen = () => {
                   y: item.value,
                   label: previousYearCumulativeData.length > 15 && index % 2 === 1 ? '' : item.label,
                 }))}
-                width={width - 64}
                 height={160}
-                theme="dark"
+                theme={colors.bgGradientFrom === '#EEEDF2' ? 'light' : 'dark'}
                 primaryColor={colors.accentPrimary}
                 secondaryColor={colors.chartGold}
                 strokeWidth={2}
@@ -1257,9 +1291,10 @@ const MonthlyScreen = () => {
               />
             </View>
           ) : (
-            <View style={styles.emptyTrendsCard}>
-              <Text style={styles.emptyTrendsText}>Loading trends data...</Text>
-            </View>
+            <PlaceholderChart 
+              height={160} 
+              message="Building cumulative view..." 
+            />
           )}
         </View>
 
@@ -1270,7 +1305,7 @@ const MonthlyScreen = () => {
         
         {/* Cost of Sales vs Purchases Chart Container */}
         <View style={styles.trendsContainer}>
-          {costOfSalesData.length > 0 && purchasesData.length > 0 ? (
+          {costOfSalesData.length >= 2 && purchasesData.length >= 2 ? (
             <View style={[styles.lineChartContainer, { alignItems: 'center' }]}>
               <DoubleLineChart
                 data1={costOfSalesData.map((item: any) => ({
@@ -1283,9 +1318,8 @@ const MonthlyScreen = () => {
                   y: item.value,
                   label: item.label,
                 }))}
-                width={width - 64}
                 height={160}
-                theme="dark"
+                theme={colors.bgGradientFrom === '#EEEDF2' ? 'light' : 'dark'}
                 primaryColor={colors.costSales}
                 secondaryColor={colors.accentPrimary}
                 strokeWidth={2}
@@ -1300,9 +1334,10 @@ const MonthlyScreen = () => {
               />
             </View>
           ) : (
-            <View style={styles.emptyTrendsCard}>
-              <Text style={styles.emptyTrendsText}>Loading cost of sales and purchases data...</Text>
-            </View>
+            <PlaceholderChart 
+              height={160} 
+              message="Analyzing cost trends..." 
+            />
           )}
         </View>
 
@@ -1313,7 +1348,7 @@ const MonthlyScreen = () => {
         
         {/* Weekday Average Bar Chart Container */}
         <View style={styles.trendsContainer}>
-          {weekdayAvgData.length > 0 ? (
+          {weekdayAvgData.length >= 2 ? (
             <View style={[styles.lineChartContainer, { alignItems: 'center' }]}>
               <SimpleBarChart
                 data={weekdayAvgData.map((item: any) => ({
@@ -1321,9 +1356,8 @@ const MonthlyScreen = () => {
                   y: item.value,
                   label: item.label,
                 }))}
-                width={width - 64}
                 height={150}
-                theme="dark"
+                theme={colors.bgGradientFrom === '#EEEDF2' ? 'light' : 'dark'}
                 primaryColor="#8B5CF6"
                 barWidth={30}
                 barSpacing={10}
@@ -1336,9 +1370,10 @@ const MonthlyScreen = () => {
               />
             </View>
           ) : (
-            <View style={styles.emptyTrendsCard}>
-              <Text style={styles.emptyTrendsText}>Loading weekday average data...</Text>
-            </View>
+            <PlaceholderChart 
+              height={150} 
+              message="Calculating weekday patterns..." 
+            />
           )}
         </View>
 
@@ -1349,7 +1384,7 @@ const MonthlyScreen = () => {
         
         {/* Last 12 Months Bar Chart Container */}
         <View style={styles.trendsContainer}>
-          {last12MonthsData.length > 0 ? (
+          {last12MonthsData.length >= 2 ? (
             <View style={[styles.lineChartContainer, { alignItems: 'center' }]}>
               <SimpleBarChart
                 data={last12MonthsData.map((item: any) => ({
@@ -1357,9 +1392,8 @@ const MonthlyScreen = () => {
                   y: item.value,
                   label: item.label,
                 }))}
-                width={width - 64}
                 height={150}
-                theme="dark"
+                theme={colors.bgGradientFrom === '#EEEDF2' ? 'light' : 'dark'}
                 primaryColor={colors.accentPrimary}
                 barWidth={16}
                 barSpacing={8}
@@ -1372,9 +1406,10 @@ const MonthlyScreen = () => {
               />
             </View>
           ) : (
-            <View style={styles.emptyTrendsCard}>
-              <Text style={styles.emptyTrendsText}>Loading last 12 months data...</Text>
-            </View>
+            <PlaceholderChart 
+              height={150} 
+              message="Loading historical data..." 
+            />
           )}
         </View>
       </ScrollView>
@@ -1417,7 +1452,7 @@ const MonthlyScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bgGradientFrom,
@@ -1435,7 +1470,7 @@ const styles = StyleSheet.create({
   },
   stickyHeader: {
     padding: 16,
-    paddingTop: 63,
+    paddingTop: 8,
     backgroundColor: colors.bgGradientFrom,
     zIndex: 1000,
   },
@@ -1466,6 +1501,31 @@ const styles = StyleSheet.create({
   },
   dateButton: {
     padding: 8,
+  },
+  headerRightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  iconButton: {
+    padding: 8,
+  },
+  badge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: colors.accentPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  badgeText: {
+    color: colors.bgGradientFrom,
+    fontSize: 10,
+    fontWeight: '700',
   },
   scrollContent: {
     flex: 1,
@@ -2072,6 +2132,26 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   costOfSalesDetailValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  costOfSalesSeparator: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: 8,
+  },
+  costOfSalesSubDetailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  costOfSalesSubDetailLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  costOfSalesSubDetailValue: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.textPrimary,
