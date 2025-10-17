@@ -1,18 +1,27 @@
-// Web-specific API Configuration (CORS proxy for development)
-// Resolve host dynamically so mobile devices on LAN can reach the proxy
+// Web-specific API Configuration
+// Supports both development (with CORS proxy) and production (direct API)
 const resolveBaseUrl = () => {
   try {
-    const host = (typeof window !== 'undefined' && window.location && window.location.hostname)
-      ? window.location.hostname
-      : 'localhost';
-    return `http://${host}:3000/api`;
+    // In production, use the backend API directly
+    if (typeof window !== 'undefined' && window.location) {
+      const hostname = window.location.hostname;
+      
+      // Production: deployed on Render or custom domain
+      if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+        return 'https://pharmacy-api-webservice.onrender.com';
+      }
+      
+      // Development: use local CORS proxy
+      return `http://${hostname}:3000/api`;
+    }
+    return 'http://localhost:3000/api';
   } catch {
     return 'http://localhost:3000/api';
   }
 };
 
 export const API_CONFIG = {
-  // Use local CORS proxy for web development (LAN-friendly)
+  // Automatically switches between dev proxy and production API
   BASE_URL: resolveBaseUrl(),
   
   // Available pharmacies for the new database

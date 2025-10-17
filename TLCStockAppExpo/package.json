@@ -29,7 +29,7 @@
     "web:build": "expo export -p web",
     "web:serve": "npx serve dist",
     "render:build": "npm run web:build",
-    "render:start": "node web-server.js & npx serve dist -l 8081",
+    "render:start": "node server.js",
     "build:ios": "expo build:ios",
     "build:android": "expo build:android",
     "build:ios-store": "./scripts/build-ios.sh",

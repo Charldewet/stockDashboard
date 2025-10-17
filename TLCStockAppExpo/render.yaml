@@ -4,11 +4,11 @@ services:
     env: node
     region: oregon
     plan: free
-    buildCommand: npm install && npm run web:build
-    startCommand: node web-server.js & npx serve dist -l 8081
+    buildCommand: npm install && npm run render:build
+    startCommand: npm run render:start
     envVars:
       - key: NODE_VERSION
         value: 18.20.5
-      - key: PORT
-        value: 8081
+      - key: NODE_ENV
+        value: production
 
