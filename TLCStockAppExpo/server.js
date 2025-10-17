@@ -53,7 +53,7 @@ app.use(express.static(DIST_DIR, {
 }));
 
 // SPA fallback - serve index.html for all routes
-app.get('/*', (req, res) => {
+app.get('*', (req, res) => {
   console.log(`Serving index.html for: ${req.url}`);
   res.sendFile(indexPath);
 });
