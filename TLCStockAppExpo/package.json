@@ -26,6 +26,10 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "web:proxy": "node web-server.js",
+    "web:build": "expo export -p web",
+    "web:serve": "npx serve dist",
+    "render:build": "npm run web:build",
+    "render:start": "node web-server.js & npx serve dist -l 8081",
     "build:ios": "expo build:ios",
     "build:android": "expo build:android",
     "build:ios-store": "./scripts/build-ios.sh",
@@ -77,6 +81,7 @@
     "http-proxy-middleware": "^3.0.5",
     "pdf-parse": "^1.1.1",
     "react-dom": "19.0.0",
+    "serve": "^14.2.4",
     "typescript": "~5.8.3"
   },
   "private": true,
