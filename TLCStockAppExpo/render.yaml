@@ -4,7 +4,7 @@ services:
     env: node
     region: oregon
     plan: free
-    buildCommand: npm install && npm run render:build
+    buildCommand: npm ci --legacy-peer-deps || npm install --legacy-peer-deps && npm run render:build
     startCommand: npm run render:start
     envVars:
       - key: NODE_VERSION
